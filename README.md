@@ -7,8 +7,10 @@ Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête
 | Jeu | Modes |
 | --- | --- |
 | 🗺️ **La carte du monde** | **Tout nommer** : tape les pays, ils s’illuminent sur la carte · **Localiser** : un pays est demandé, clique dessus (3 essais) |
-| 🚩 **Les drapeaux** | **Tous les drapeaux** (grille façon JetPunk) · **Un par un** avec indices et « passer » |
+| 🚩 **Les drapeaux** | **Tous les drapeaux** (grille) · **Un par un** avec indices et « passer » |
 | 🏛️ **Les capitales** | **Liste complète** par continent · **Un par un** avec indices |
+
+Dans les grilles, une **case active** est surlignée : la réponse n’est acceptée que pour cette case, puis on passe automatiquement à la suivante. Clic sur une case pour la choisir, Tab / Maj+Tab ou « Passer » pour se déplacer ; les cases déjà trouvées sont sautées.
 
 Pour chaque partie : région (Monde, Europe, Afrique, Asie, Amérique du Nord, Amérique du Sud, Océanie), chrono ou sans limite, records sauvegardés sur l’appareil.
 

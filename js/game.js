@@ -85,7 +85,8 @@
     el.mapStage.hidden = el.gridStage.hidden = el.soloStage.hidden = true;
     el.form.hidden = cfg.mode === 'click';
     el.input.value = ''; el.input.placeholder = G.placeholder;
-    el.hint.hidden = el.skip.hidden = cfg.mode !== 'solo';
+    el.hint.hidden = cfg.mode !== 'solo';
+    el.skip.hidden = cfg.mode !== 'solo' && cfg.mode !== 'grid';
     el.toasts.innerHTML = '';
     $('#giveUpBtn').hidden = false;
     el.pauseBtn.hidden = false;
@@ -99,7 +100,10 @@
       buildLegend();
     } else map = null;
 
-    if (cfg.mode === 'grid') buildGrid(cfg.game === 'capitals' ? groupByCont(items) : shuffle(items));
+    if (cfg.mode === 'grid') {
+      buildGrid(cfg.game === 'capitals' ? groupByCont(items) : shuffle(items));
+      select(S.order[0]);
+    }
     if (cfg.mode === 'click' || cfg.mode === 'solo') {
       S.seq = shuffle(items);
       if (cfg.mode === 'solo') el.soloStage.hidden = false;
@@ -162,7 +166,7 @@
     const cap = S.cfg.game === 'capitals';
     el.grid.className = 'grid' + (cap ? ' capitals' : '');
     el.grid.innerHTML = '';
-    S.tiles = {};
+    S.tiles = {}; S.order = list.map(c => c.id); S.sel = null;
     const frag = document.createDocumentFragment();
     list.forEach((c, i) => {
       if (c.sep && S.cfg.zone === 'ALL') {
@@ -171,6 +175,7 @@
       }
       const t = document.createElement('div');
       t.className = 'tile' + (cap ? ' cap-tile' : '');
+      t.dataset.id = c.id;
       t.innerHTML = cap
         ? `<div class="tile-inner"><img src="flags/thumb/${c.a2}.webp" alt="" loading="lazy" decoding="async"><div class="cap-info"><div class="cap-country"></div><div class="t-name">?</div></div></div>`
         : `<div class="tile-inner"><img src="flags/thumb/${c.a2}.webp" alt="Drapeau à deviner" loading="lazy" decoding="async"><div class="t-name">?</div></div>`;
@@ -199,6 +204,51 @@
       row.querySelector('.lg-n').textContent = `${n}/${all.length}`;
       row.classList.toggle('done', n === all.length);
     }
+  }
+
+  /* ---------- Grilles : une case active, remplie dans l'ordre ou choisie au clic ---------- */
+  const byId = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
+
+  function select(id, scroll = true) {
+    if (S.sel && S.tiles[S.sel]) S.tiles[S.sel].classList.remove('sel');
+    S.sel = id || null;
+    if (!id) return;
+    const t = S.tiles[id];
+    t.classList.add('sel');
+    el.input.placeholder = S.cfg.game === 'capitals' ? `Capitale : ${byId[id].n}` : 'Quel est ce pays ?';
+    if (scroll) t.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** Prochaine case non trouvée après `id` dans le sens `dir` (en bouclant). */
+  function nextOpen(id, dir = 1) {
+    const o = S.order, n = o.length, i0 = o.indexOf(id);
+    for (let k = 1; k <= n; k++) {
+      const cand = o[(i0 + dir * k + n * k) % n];
+      if (!S.found.has(cand)) return cand;
+    }
+    return null;
+  }
+
+  function gridInput(force) {
+    if (!S.sel) return;
+    const k = key(el.input.value);
+    if (k && S.keys.get(S.sel).includes(k)) {
+      const id = S.sel;
+      accept(byId[id]);
+      select(nextOpen(id));
+      return;
+    }
+    if (force && k) {
+      shakeBox();
+      const t = S.tiles[S.sel]; t.classList.remove('wrong'); void t.offsetWidth; t.classList.add('wrong');
+    }
+  }
+
+  function moveSel(dir) {
+    if (!S || S.ended || S.cfg.mode !== 'grid' || !S.sel) return;
+    select(nextOpen(S.sel, dir));
+    el.input.value = '';
+    el.input.focus({ preventScroll: true });
   }
 
   function listInput(force) {
@@ -343,6 +393,7 @@
       if (S.res[c.id] === 'missed') { map && map.set(c.id, 'missed'); tileSet(c, 'missed'); }
     }
     if (map) map.reveal = true;
+    if (S.sel && S.tiles && S.tiles[S.sel]) S.tiles[S.sel].classList.remove('sel');
     el.form.hidden = true; el.ask.hidden = true;
     $('#giveUpBtn').hidden = true;
     el.pauseBtn.hidden = true;
@@ -392,15 +443,32 @@
   /* =================== Événements =================== */
   el.input.addEventListener('input', () => {
     if (!S || S.ended) return;
-    if (S.cfg.mode === 'solo') soloInput(false); else listInput(false);
+    if (S.cfg.mode === 'solo') soloInput(false); else if (S.cfg.mode === 'grid') gridInput(false); else listInput(false);
   });
   el.form.addEventListener('submit', e => {
     e.preventDefault();
     if (!S || S.ended) return;
-    if (S.cfg.mode === 'solo') soloInput(true); else listInput(true);
+    if (S.cfg.mode === 'solo') soloInput(true); else if (S.cfg.mode === 'grid') gridInput(true); else listInput(true);
   });
   el.hint.addEventListener('click', hint);
-  el.skip.addEventListener('click', () => { if (S && !S.ended && !S.busy) soloResult('bad'); el.input.focus(); });
+  el.skip.addEventListener('click', () => {
+    if (!S || S.ended) return;
+    if (S.cfg.mode === 'grid') return moveSel(1);
+    if (!S.busy) soloResult('bad');
+    el.input.focus();
+  });
+  // Clic sur une case : elle devient la case active
+  el.grid.addEventListener('click', e => {
+    const t = e.target.closest('.tile');
+    if (!t || !S || S.ended || S.paused || S.cfg.mode !== 'grid' || S.found.has(t.dataset.id)) return;
+    select(t.dataset.id, false);
+    el.input.value = '';
+    el.input.focus({ preventScroll: true });
+  });
+  // Tab / Maj+Tab : case suivante / précédente
+  el.input.addEventListener('keydown', e => {
+    if (e.key === 'Tab' && S && S.cfg.mode === 'grid' && !S.ended) { e.preventDefault(); moveSel(e.shiftKey ? -1 : 1); }
+  });
   $('#askSkip').addEventListener('click', () => { if (S && !S.ended && !S.busy && S.cur) revealTarget(); });
   $('#giveUpBtn').addEventListener('click', () => end('giveup'));
 
