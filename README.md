@@ -12,6 +12,8 @@ Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête
 
 Pour chaque partie : région (Monde, Europe, Afrique, Asie, Amérique du Nord, Amérique du Sud, Océanie), chrono ou sans limite, records sauvegardés sur l’appareil.
 
+**Pause** : bouton ⏸ à côté du chrono (ou Échap quand la saisie est vide ; Échap/Entrée pour reprendre). Le chrono s’arrête, la progression est conservée et le plateau est masqué. La partie se met aussi en pause toute seule quand on change d’onglet ou d’application.
+
 - Saisie tolérante : accents, majuscules, tirets et articles ignorés ; variantes acceptées (Birmanie/Myanmar, Kiev/Kyiv, RDC…).
 - Quand un nom est le début d’un autre (Niger → Nigeria, Soudan → Soudan du Sud), l’appli attend une seconde avant de valider.
 - Carte interactive : zoom molette/pincement, déplacement, micro-États en pastilles cliquables, légende par continent.

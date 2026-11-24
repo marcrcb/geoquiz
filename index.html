@@ -85,11 +85,24 @@
       <div class="stat"><span class="stat-v" id="gScore">0</span><span class="stat-l" id="gTotal">/0</span></div>
       <div class="stat timer" id="gTimerBox"><span class="stat-v" id="gTimer">0:00</span></div>
     </div>
+    <button class="icon-btn pause-btn" id="pauseBtn" title="Pause" aria-label="Mettre en pause" aria-pressed="false">
+      <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="2.5" width="3" height="11" rx="1"/><rect x="9.5" y="2.5" width="3" height="11" rx="1"/></svg>
+      <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.8v10.4a.6.6 0 0 0 .9.5l8.2-5.2a.6.6 0 0 0 0-1L5.4 2.3a.6.6 0 0 0-.9.5z"/></svg>
+    </button>
     <button class="btn" id="giveUpBtn">Abandonner</button>
   </header>
   <div class="progress"><div class="progress-bar" id="gProgress"></div></div>
 
   <div class="game-body" id="gameBody">
+    <div class="pause-overlay" id="pauseOverlay" hidden>
+      <div class="pause-card">
+        <p class="kicker">Pause</p>
+        <strong id="pauseScore"></strong>
+        <span id="pauseTime"></span>
+        <button class="btn primary" id="resumeBtn">Reprendre</button>
+        <small>Échap ou Entrée pour reprendre</small>
+      </div>
+    </div>
     <!-- Carte -->
     <section class="map-stage" id="mapStage" hidden>
       <div class="map-svg" id="mapSvg"></div>

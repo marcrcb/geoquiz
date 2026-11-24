@@ -51,11 +51,19 @@
     form: $('#answerForm'), input: $('#answer'), box: $('.answer-box'), toasts: $('#toasts'),
     score: $('#gScore'), total: $('#gTotal'), timer: $('#gTimer'), timerBox: $('#gTimerBox'), progress: $('#gProgress'),
     ask: $('#ask'), legend: $('#mapLegend'), review: $('#reviewBar'),
-    hint: $('#hintBtn'), skip: $('#skipBtn'),
+    hint: $('#hintBtn'), skip: $('#skipBtn'), pauseBtn: $('#pauseBtn'), pauseOverlay: $('#pauseOverlay'),
   };
 
   /** setTimeout lié à la partie en cours : ignoré si une autre partie a démarré entre-temps. */
-  function later(fn, ms) { const s = S; return setTimeout(() => { if (S === s && !s.ended) fn(); }, ms); }
+  function later(fn, ms) {
+    const s = S;
+    return setTimeout(() => {
+      if (S !== s || s.ended) return;
+      if (s.paused) s.deferred.push(fn); else fn();
+    }, ms);
+  }
+  /** Temps de jeu écoulé (s), pauses exclues. */
+  const elapsedOf = s => ((s.paused ? s.pauseAt : performance.now()) - s.t0) / 1000;
 
   /* =================== Démarrage =================== */
   function start(cfg) {
@@ -65,7 +73,7 @@
     S = {
       cfg, G, items, total: items.length, found: new Set(), res: {}, score: 0, done: 0,
       streak: 0, bestStreak: 0, lastFind: 0, t0: performance.now(), limit: cfg.timer === 'timed' ? timeFor(cfg.game, cfg.mode, cfg.zone) : 0,
-      ended: false, seq: null, cur: null, tries: 0, hints: 0, busy: false, pending: null,
+      ended: false, seq: null, cur: null, tries: 0, hints: 0, busy: false, pending: null, paused: false, pauseAt: 0, deferred: [],
     };
     S.keys = new Map(items.map(c => [c.id, G.answers(c).map(key)]));
     $('#gTitle').textContent = G.title;
@@ -80,6 +88,8 @@
     el.hint.hidden = el.skip.hidden = cfg.mode !== 'solo';
     el.toasts.innerHTML = '';
     $('#giveUpBtn').hidden = false;
+    el.pauseBtn.hidden = false;
+    showPaused(false);
     App.show('game');
 
     if (cfg.game === 'map') {
@@ -105,7 +115,8 @@
 
   function tick() {
     if (!S || S.ended) return;
-    const el_ = (performance.now() - S.t0) / 1000;
+    if (S.paused) return;
+    const el_ = elapsedOf(S);
     if (S.limit) {
       const left = S.limit - el_;
       el.timer.textContent = fmt(Math.ceil(left));
@@ -322,7 +333,8 @@
     if (!S || S.ended) return;
     stop();
     clearTimeout(S.pending);
-    const elapsed = Math.min(S.limit || Infinity, (performance.now() - S.t0) / 1000);
+    if (S.paused) resume();
+    const elapsed = Math.min(S.limit || Infinity, elapsedOf(S));
     S.elapsed = elapsed;
     el.input.blur();
     // marquer les réponses manquées
@@ -333,6 +345,7 @@
     if (map) map.reveal = true;
     el.form.hidden = true; el.ask.hidden = true;
     $('#giveUpBtn').hidden = true;
+    el.pauseBtn.hidden = true;
 
     const pct = Math.round(100 * S.score / S.total);
     const rk = recKey(S.cfg);
@@ -390,12 +403,54 @@
   el.skip.addEventListener('click', () => { if (S && !S.ended && !S.busy) soloResult('bad'); el.input.focus(); });
   $('#askSkip').addEventListener('click', () => { if (S && !S.ended && !S.busy && S.cur) revealTarget(); });
   $('#giveUpBtn').addEventListener('click', () => end('giveup'));
+
+  /* =================== Pause =================== */
+  function pause() {
+    if (!S || S.ended || S.paused) return;
+    tick(); // fige l'affichage sur la valeur exacte
+    if (S.ended) return;
+    S.paused = true; S.pauseAt = performance.now();
+    // une validation « Niger → Nigeria » en attente est rejouée à la reprise
+    if (S.pending) { clearTimeout(S.pending); S.pending = null; S.deferred.push(() => listInput(false)); }
+    el.input.blur();
+    $('#pauseTime').textContent = S.limit ? `${fmt(Math.ceil(S.limit - elapsedOf(S)))} restantes` : `${fmt(elapsedOf(S))} écoulées`;
+    $('#pauseScore').textContent = `${S.score} / ${S.total}`;
+    showPaused(true);
+  }
+  function resume() {
+    if (!S || !S.paused) return;
+    const d = performance.now() - S.pauseAt;
+    S.t0 += d; S.lastFind += d;
+    S.paused = false;
+    showPaused(false);
+    const q = S.deferred; S.deferred = [];
+    q.forEach(fn => { if (!S.ended) fn(); });
+    tick();
+    if (!S.ended && S.cfg.mode !== 'click') el.input.focus({ preventScroll: true });
+  }
+  function showPaused(on) {
+    $('#game').classList.toggle('paused', on);
+    el.pauseOverlay.hidden = !on;
+    el.pauseBtn.setAttribute('aria-pressed', on);
+    el.pauseBtn.title = on ? 'Reprendre' : 'Pause';
+    el.pauseBtn.setAttribute('aria-label', on ? 'Reprendre la partie' : 'Mettre en pause');
+  }
+  el.pauseBtn.addEventListener('click', () => (S && S.paused ? resume() : pause()));
+  $('#resumeBtn').addEventListener('click', resume);
+  // Pause automatique quand on quitte l'onglet ou l'application
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  // Échap : efface la saisie, ou met en pause si elle est vide ; Échap/Entrée reprennent
+  addEventListener('keydown', e => {
+    if (!S || S.ended || !$('#game').classList.contains('active')) return;
+    if (S.paused && (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); resume(); }
+    else if (!S.paused && e.key === 'Escape' && !el.input.value) { e.preventDefault(); pause(); }
+  });
   $$('[data-zoom]').forEach(b => b.addEventListener('click', () => {
     if (!map) return;
     const z = b.dataset.zoom; z === 'in' ? map.zoomBy(1.8) : z === 'out' ? map.zoomBy(1 / 1.8) : map.resetZoom();
   }));
   // Touche Échap : effacer la saisie
-  el.input.addEventListener('keydown', e => { if (e.key === 'Escape') el.input.value = ''; });
+  el.input.addEventListener('keydown', e => { if (e.key === 'Escape' && el.input.value) { el.input.value = ''; e.stopPropagation(); } });
   // Redessiner la carte seulement si la largeur change (le clavier mobile ne modifie que la hauteur)
   let rt;
   addEventListener('resize', () => {
