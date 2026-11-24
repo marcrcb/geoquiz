@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Géo Quiz — Drapeaux, carte & capitales</title>
+<meta name="description" content="Trois jeux de géographie hors ligne : retrouve les pays sur la carte, les drapeaux et les capitales du monde.">
+<meta name="theme-color" content="#0b1530">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+
+<!-- ================= ACCUEIL ================= -->
+<main id="home" class="screen active">
+  <header class="home-head">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" class="brand-icon">
+      <h1>Géo<span>Quiz</span></h1>
+    </div>
+    <div class="head-actions">
+      <span class="offline-pill" id="offlinePill" hidden>✈︎ Hors ligne prêt</span>
+      <button class="icon-btn" id="soundBtn" title="Son" aria-label="Activer ou couper le son">🔊</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-text">
+      <p class="kicker">197 pays · 6 continents</p>
+      <h2>Fais le tour du monde<br><em>sans sortir de chez toi.</em></h2>
+      <p class="lead">Carte interactive, drapeaux et capitales : tape les réponses au clavier, bats tes records — même sans connexion.</p>
+      <div class="hero-stats" id="heroStats"></div>
+    </div>
+    <div class="globe-wrap">
+      <canvas id="globe" aria-label="Globe terrestre animé"></canvas>
+      <div class="globe-hint">Fais-moi tourner ↻</div>
+    </div>
+  </section>
+
+  <section class="games" id="gameCards">
+    <button class="game-card" data-game="map" style="--c1:#33d6a6;--c2:#1b8f8a">
+      <div class="gc-art">🗺️</div>
+      <div class="gc-body">
+        <h3>La carte du monde</h3>
+        <p>Nomme chaque pays sur la carte, ou retrouve-le du premier clic.</p>
+        <div class="gc-best" data-best="map"></div>
+      </div>
+      <span class="gc-go">Jouer →</span>
+    </button>
+    <button class="game-card" data-game="flags" style="--c1:#ff8a5b;--c2:#e0457b">
+      <div class="gc-art">🚩</div>
+      <div class="gc-body">
+        <h3>Les drapeaux</h3>
+        <p>197 drapeaux à reconnaître : tape le nom du pays pour le révéler.</p>
+        <div class="gc-best" data-best="flags"></div>
+      </div>
+      <span class="gc-go">Jouer →</span>
+    </button>
+    <button class="game-card" data-game="capitals" style="--c1:#8f7bff;--c2:#4a5bdc">
+      <div class="gc-art">🏛️</div>
+      <div class="gc-body">
+        <h3>Les capitales</h3>
+        <p>De Canberra à Ciudad de la Paz : trouve la capitale de chaque pays.</p>
+        <div class="gc-best" data-best="capitals"></div>
+      </div>
+      <span class="gc-go">Jouer →</span>
+    </button>
+  </section>
+
+  <footer class="foot">
+    Carte : Natural Earth · Drapeaux : flag-icons · Données à jour 2026 ·
+    <button class="link" id="installBtn" hidden>Installer l’application</button>
+  </footer>
+</main>
+
+<!-- ================= CONFIGURATION ================= -->
+<div class="modal" id="setup" hidden>
+  <div class="modal-card setup-card">
+    <button class="icon-btn close" data-close aria-label="Fermer">✕</button>
+    <div class="setup-head">
+      <span class="setup-emoji" id="setupEmoji"></span>
+      <div>
+        <h2 id="setupTitle"></h2>
+        <p id="setupDesc"></p>
+      </div>
+    </div>
+    <h4>Mode</h4>
+    <div class="modes" id="setupModes"></div>
+    <h4>Région</h4>
+    <div class="chips" id="setupZones"></div>
+    <h4>Temps</h4>
+    <div class="chips" id="setupTimer"></div>
+    <div class="setup-foot">
+      <div class="setup-record" id="setupRecord"></div>
+      <button class="btn primary big" id="startBtn">C’est parti !</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= JEU ================= -->
+<main id="game" class="screen">
+  <header class="game-bar">
+    <button class="icon-btn" id="quitBtn" title="Retour au menu" aria-label="Retour au menu">←</button>
+    <div class="gb-title"><span id="gTitle"></span><small id="gSub"></small></div>
+    <div class="gb-stats">
+      <div class="stat"><span class="stat-v" id="gScore">0</span><span class="stat-l" id="gTotal">/0</span></div>
+      <div class="stat timer" id="gTimerBox"><span class="stat-v" id="gTimer">0:00</span><span class="stat-l">⏱</span></div>
+    </div>
+    <button class="btn ghost" id="giveUpBtn" title="Abandonner"><span class="gu-ico">🏳️</span><span class="gu-txt">Abandonner</span></button>
+  </header>
+  <div class="progress"><div class="progress-bar" id="gProgress"></div></div>
+  <div class="combo" id="combo" hidden></div>
+
+  <div class="game-body" id="gameBody">
+    <!-- Carte -->
+    <section class="map-stage" id="mapStage" hidden>
+      <div class="map-svg" id="mapSvg"></div>
+      <div class="map-ctrl">
+        <button class="icon-btn" data-zoom="in" aria-label="Zoomer">＋</button>
+        <button class="icon-btn" data-zoom="out" aria-label="Dézoomer">－</button>
+        <button class="icon-btn" data-zoom="reset" aria-label="Recentrer">⌂</button>
+      </div>
+      <div class="map-legend" id="mapLegend"></div>
+      <div class="tooltip" id="tooltip" hidden></div>
+    </section>
+
+    <!-- Grille (drapeaux / capitales) -->
+    <section class="grid-stage" id="gridStage" hidden>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <!-- Un par un -->
+    <section class="solo-stage" id="soloStage" hidden>
+      <div class="solo-card" id="soloCard">
+        <div class="solo-flag-wrap"><img id="soloFlag" alt=""></div>
+        <div class="solo-q" id="soloQ"></div>
+        <div class="solo-hint" id="soloHint"></div>
+        <div class="solo-reveal" id="soloReveal"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Bannière question (mode localiser) -->
+  <div class="ask" id="ask" hidden>
+    <img id="askFlag" alt="">
+    <div><small>Où se trouve…</small><strong id="askName"></strong></div>
+    <div class="ask-tries" id="askTries"></div>
+    <button class="btn ghost small" id="askSkip">Passer</button>
+  </div>
+
+  <!-- Saisie -->
+  <form class="answer" id="answerForm" autocomplete="off" hidden>
+    <div class="answer-box">
+      <input id="answer" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Tape un pays…" enterkeyhint="done">
+      <div class="answer-actions">
+        <button type="button" class="btn ghost small" id="hintBtn" hidden>💡 Indice</button>
+        <button type="button" class="btn ghost small" id="skipBtn" hidden>Passer ⏭</button>
+      </div>
+    </div>
+    <div class="toasts" id="toasts"></div>
+  </form>
+
+  <!-- Barre de revue après la partie -->
+  <div class="review-bar" id="reviewBar" hidden>
+    <span>Mode révision : <b class="r-good">trouvés</b> · <b class="r-bad">manqués</b></span>
+    <button class="btn" id="reviewAgain">Rejouer</button>
+    <button class="btn ghost" id="reviewMenu">Menu</button>
+  </div>
+</main>
+
+<!-- ================= RÉSULTATS ================= -->
+<div class="modal" id="results" hidden>
+  <div class="modal-card results-card">
+    <div class="ring">
+      <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="ring-bg"/><circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg"/></svg>
+      <div class="ring-txt"><strong id="rPct">0%</strong><small id="rCount"></small></div>
+    </div>
+    <div class="stars" id="rStars"><span>★</span><span>★</span><span>★</span></div>
+    <h2 id="rTitle"></h2>
+    <p id="rMsg"></p>
+    <div class="r-grid">
+      <div><small>Temps</small><b id="rTime"></b></div>
+      <div><small>Meilleure série</small><b id="rStreak"></b></div>
+      <div><small>Record</small><b id="rBest"></b></div>
+    </div>
+    <div class="r-badge" id="rBadge" hidden>🏆 Nouveau record !</div>
+    <div class="r-actions">
+      <button class="btn" id="rReview">Voir les réponses</button>
+      <button class="btn primary" id="rAgain">Rejouer</button>
+      <button class="btn ghost" id="rMenu">Menu</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="data/countries.js"></script>
+<script src="data/world.js"></script>
+<script src="js/util.js"></script>
+<script src="js/globe.js"></script>
+<script src="js/map.js"></script>
+<script src="js/game.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

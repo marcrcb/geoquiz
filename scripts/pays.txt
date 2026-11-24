@@ -1,0 +1,198 @@
+# ISO3 | Nom | Variantes acceptées (virgules) | Capitale | Variantes capitale
+AFG|Afghanistan||Kaboul|Kabul
+AGO|Angola||Luanda|
+ALB|Albanie||Tirana|Tirane
+AND|Andorre||Andorre-la-Vieille|Andorra la Vella
+ARE|Émirats arabes unis|EAU,Emirats,Émirats|Abou Dabi|Abu Dhabi,Abou Dhabi
+ARG|Argentine||Buenos Aires|
+ARM|Arménie||Erevan|Yerevan
+ATG|Antigua-et-Barbuda|Antigua|Saint John's|Saint Johns,St John's,St Johns
+AUS|Australie||Canberra|
+AUT|Autriche||Vienne|Wien
+AZE|Azerbaïdjan|Azerbaidjan|Bakou|Baku
+BDI|Burundi||Gitega|
+BEL|Belgique||Bruxelles|Brussels
+BEN|Bénin||Porto-Novo|
+BFA|Burkina Faso|Burkina|Ouagadougou|
+BGD|Bangladesh||Dacca|Dhaka
+BGR|Bulgarie||Sofia|
+BHR|Bahreïn|Bahrain|Manama|Manamah
+BHS|Bahamas||Nassau|
+BIH|Bosnie-Herzégovine|Bosnie|Sarajevo|
+BLR|Biélorussie|Bélarus,Belarus|Minsk|
+BLZ|Belize||Belmopan|
+BOL|Bolivie||Sucre|La Paz
+BRA|Brésil||Brasilia|Brasília
+BRB|Barbade||Bridgetown|
+BRN|Brunei|Brunéi|Bandar Seri Begawan|
+BTN|Bhoutan||Thimphou|Thimphu
+BWA|Botswana||Gaborone|
+CAF|République centrafricaine|Centrafrique,RCA|Bangui|
+CAN|Canada||Ottawa|
+CHE|Suisse||Berne|Bern
+CHL|Chili||Santiago|Santiago du Chili
+CHN|Chine||Pékin|Beijing
+CIV|Côte d'Ivoire|Cote d Ivoire|Yamoussoukro|
+CMR|Cameroun||Yaoundé|
+COD|République démocratique du Congo|RDC,RD Congo,Congo-Kinshasa,Congo Kinshasa,Zaïre|Kinshasa|
+COG|République du Congo|Congo,Congo-Brazzaville,Congo Brazzaville|Brazzaville|
+COL|Colombie||Bogota|Bogotá
+COM|Comores||Moroni|
+CPV|Cap-Vert|Cabo Verde|Praia|
+CRI|Costa Rica||San José|
+CUB|Cuba||La Havane|Havane
+CYP|Chypre||Nicosie|
+CZE|Tchéquie|République tchèque|Prague|
+DEU|Allemagne||Berlin|
+DJI|Djibouti||Djibouti|
+DMA|Dominique||Roseau|
+DNK|Danemark||Copenhague|
+DOM|République dominicaine||Saint-Domingue|Santo Domingo
+DZA|Algérie||Alger|
+ECU|Équateur||Quito|
+EGY|Égypte||Le Caire|Caire
+ERI|Érythrée||Asmara|
+ESP|Espagne||Madrid|
+EST|Estonie||Tallinn|
+ETH|Éthiopie||Addis-Abeba|Addis Abeba
+FIN|Finlande||Helsinki|
+FJI|Fidji|Îles Fidji|Suva|
+FRA|France||Paris|
+FSM|Micronésie|États fédérés de Micronésie|Palikir|
+GAB|Gabon||Libreville|
+GBR|Royaume-Uni|Angleterre,Grande-Bretagne,UK|Londres|London
+GEO|Géorgie||Tbilissi|Tbilisi
+GHA|Ghana||Accra|
+GIN|Guinée|Guinée-Conakry|Conakry|
+GMB|Gambie||Banjul|
+GNB|Guinée-Bissau||Bissau|
+GNQ|Guinée équatoriale||Ciudad de la Paz|Malabo,Oyala
+GRC|Grèce||Athènes|
+GRD|Grenade||Saint-Georges|St George's,Saint George's,Saint Georges
+GTM|Guatemala||Guatemala|Ciudad de Guatemala,Guatemala City
+GUY|Guyana||Georgetown|
+HND|Honduras||Tegucigalpa|
+HRV|Croatie||Zagreb|
+HTI|Haïti||Port-au-Prince|
+HUN|Hongrie||Budapest|
+IDN|Indonésie||Jakarta|Djakarta,Nusantara
+IND|Inde||New Delhi|Delhi,New Dehli,Dehli
+IRL|Irlande||Dublin|
+IRN|Iran||Téhéran|
+IRQ|Irak|Iraq|Bagdad|
+ISL|Islande||Reykjavik|Reykjavík
+ISR|Israël||Jérusalem|
+ITA|Italie||Rome|
+JAM|Jamaïque||Kingston|
+JOR|Jordanie||Amman|
+JPN|Japon||Tokyo|
+KAZ|Kazakhstan||Astana|
+KEN|Kenya||Nairobi|
+KGZ|Kirghizistan|Kirghizstan|Bichkek|Bishkek
+KHM|Cambodge||Phnom Penh|
+KIR|Kiribati||Tarawa-Sud|Tarawa,South Tarawa
+KNA|Saint-Christophe-et-Niévès|Saint-Kitts-et-Nevis,Saint Kitts|Basseterre|
+KOR|Corée du Sud||Séoul|
+XKX|Kosovo||Pristina|Prishtina
+KWT|Koweït||Koweït|Koweït City,Kuwait City
+LAO|Laos||Vientiane|
+LBN|Liban||Beyrouth|
+LBR|Liberia|Libéria|Monrovia|
+LBY|Libye||Tripoli|
+LCA|Sainte-Lucie||Castries|
+LIE|Liechtenstein||Vaduz|
+LKA|Sri Lanka||Sri Jayawardenepura Kotte|Kotte,Colombo
+LSO|Lesotho||Maseru|
+LTU|Lituanie||Vilnius|
+LUX|Luxembourg||Luxembourg|
+LVA|Lettonie||Riga|
+MAR|Maroc||Rabat|
+MCO|Monaco||Monaco|
+MDA|Moldavie||Chișinău|Chisinau,Kichinev
+MDG|Madagascar||Antananarivo|Tananarive
+MDV|Maldives||Malé|
+MEX|Mexique||Mexico|
+MHL|Îles Marshall|Marshall|Majuro|
+MKD|Macédoine du Nord|Macédoine|Skopje|
+MLI|Mali||Bamako|
+MLT|Malte||La Valette|Valette,Valletta
+MMR|Birmanie|Myanmar|Naypyidaw|Naypyitaw,Nay Pyi Taw
+MNE|Monténégro||Podgorica|
+MNG|Mongolie||Oulan-Bator|Oulan Bator,Ulaanbaatar
+MOZ|Mozambique||Maputo|
+MRT|Mauritanie||Nouakchott|
+MUS|Maurice|Île Maurice|Port-Louis|
+MWI|Malawi||Lilongwe|
+MYS|Malaisie|Malaysia|Kuala Lumpur|
+NAM|Namibie||Windhoek|
+NER|Niger||Niamey|
+NGA|Nigeria|Nigéria|Abuja|
+NIC|Nicaragua||Managua|
+NLD|Pays-Bas|Hollande|Amsterdam|
+NOR|Norvège||Oslo|
+NPL|Népal||Katmandou|Kathmandu
+NRU|Nauru||Yaren|
+NZL|Nouvelle-Zélande||Wellington|
+OMN|Oman||Mascate|Muscat
+PAK|Pakistan||Islamabad|
+PAN|Panama||Panama|Panama City
+PER|Pérou||Lima|
+PHL|Philippines||Manille|Manila
+PLW|Palaos|Palau|Ngerulmud|Melekeok
+PNG|Papouasie-Nouvelle-Guinée||Port Moresby|
+POL|Pologne||Varsovie|
+PRK|Corée du Nord||Pyongyang|
+PRT|Portugal||Lisbonne|
+PRY|Paraguay||Asuncion|Asunción
+PSE|Palestine|État de Palestine|Ramallah|Jérusalem-Est
+QAT|Qatar||Doha|
+ROU|Roumanie||Bucarest|
+RUS|Russie||Moscou|
+RWA|Rwanda||Kigali|
+SAU|Arabie saoudite||Riyad|Riyadh
+SDN|Soudan||Khartoum|Port-Soudan
+SEN|Sénégal||Dakar|
+SGP|Singapour||Singapour|
+SLB|Îles Salomon|Salomon|Honiara|
+SLE|Sierra Leone||Freetown|
+SLV|Salvador|El Salvador|San Salvador|
+SMR|Saint-Marin||Saint-Marin|San Marino
+SOM|Somalie||Mogadiscio|
+SRB|Serbie||Belgrade|
+SSD|Soudan du Sud||Djouba|Juba
+STP|Sao Tomé-et-Principe|São Tomé-et-Príncipe,Sao Tome|Sao Tomé|São Tomé
+SUR|Suriname|Surinam|Paramaribo|
+SVK|Slovaquie||Bratislava|
+SVN|Slovénie||Ljubljana|
+SWE|Suède||Stockholm|
+SWZ|Eswatini|Swaziland|Mbabane|Lobamba
+SYC|Seychelles||Victoria|
+SYR|Syrie||Damas|
+TCD|Tchad||N'Djaména|Ndjamena,N'Djamena
+TGO|Togo||Lomé|
+THA|Thaïlande||Bangkok|
+TJK|Tadjikistan||Douchanbé|Dushanbe,Douchanbe
+TKM|Turkménistan||Achgabat|Ashgabat,Achkhabad
+TLS|Timor oriental|Timor-Leste|Dili|
+TON|Tonga||Nukuʻalofa|Nuku'alofa,Nukualofa
+TTO|Trinité-et-Tobago||Port-d'Espagne|Port of Spain
+TUN|Tunisie||Tunis|
+TUR|Turquie|Türkiye|Ankara|
+TUV|Tuvalu||Funafuti|
+TWN|Taïwan||Taipei|Taïpei
+TZA|Tanzanie||Dodoma|
+UGA|Ouganda||Kampala|
+UKR|Ukraine||Kiev|Kyiv
+URY|Uruguay||Montevideo|
+USA|États-Unis|USA,Etats-Unis d'Amérique,Amérique|Washington|Washington DC
+UZB|Ouzbékistan||Tachkent|Tashkent
+VAT|Vatican|Saint-Siège,Cité du Vatican|Vatican|Cité du Vatican
+VCT|Saint-Vincent-et-les-Grenadines|Saint-Vincent|Kingstown|
+VEN|Venezuela|Vénézuela|Caracas|
+VNM|Viêt Nam|Vietnam|Hanoï|
+VUT|Vanuatu||Port-Vila|
+WSM|Samoa||Apia|
+YEM|Yémen||Sanaa|Sana'a
+ZAF|Afrique du Sud||Pretoria|Le Cap,Bloemfontein
+ZMB|Zambie||Lusaka|
+ZWE|Zimbabwe||Harare|
