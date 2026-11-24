@@ -10,7 +10,6 @@ self.addEventListener('activate', e => {
   e.waitUntil((async () => {
     for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
     await self.clients.claim();
-    for (const c of await self.clients.matchAll()) c.postMessage('cached');
   })());
 });
 

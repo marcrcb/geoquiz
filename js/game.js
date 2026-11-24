@@ -1,25 +1,25 @@
 /* Moteur des trois jeux : saisie libre (liste) ou question par question (série). */
 (function () {
-  const { $, $$, key, shuffle, fmt, store, sfx, confetti } = U;
+  const { $, $$, key, shuffle, fmt, store } = U;
 
   const ZONES = [
-    ['ALL', 'Monde', '🌍'], ['EU', 'Europe', '🏰'], ['AF', 'Afrique', '🦁'], ['AS', 'Asie', '🏯'],
-    ['NA', 'Amérique du Nord', '🗽'], ['SA', 'Amérique du Sud', '🦜'], ['OC', 'Océanie', '🏝️'],
+    ['ALL', 'Monde'], ['EU', 'Europe'], ['AF', 'Afrique'], ['AS', 'Asie'],
+    ['NA', 'Amérique du Nord'], ['SA', 'Amérique du Sud'], ['OC', 'Océanie'],
   ];
   const ZONE_NAME = Object.fromEntries(ZONES.map(z => [z[0], z[1]]));
   const CONT_ORDER = ['EU', 'AF', 'AS', 'NA', 'SA', 'OC'];
 
   const GAMES = {
     map: {
-      title: 'La carte du monde', emoji: '🗺️', desc: 'Retrouve les pays sur la carte interactive.',
+      title: 'Carte du monde', num: '01', desc: 'Retrouve les pays sur la carte interactive.',
       modes: [
-        { id: 'type', name: 'Tout nommer', desc: 'Tape les noms des pays : chacun s’illumine sur la carte.', sec: 5 },
+        { id: 'type', name: 'Tout nommer', desc: 'Tape les noms des pays : chacun apparaît sur la carte.', sec: 5 },
         { id: 'click', name: 'Localiser', desc: 'Un pays est demandé : clique dessus. 3 essais par pays.', sec: 7 },
       ],
       answers: c => [c.n, ...c.alt], placeholder: 'Tape un pays…',
     },
     flags: {
-      title: 'Les drapeaux', emoji: '🚩', desc: 'Reconnais les drapeaux du monde entier.',
+      title: 'Drapeaux', num: '02', desc: 'Reconnais les drapeaux du monde entier.',
       modes: [
         { id: 'grid', name: 'Tous les drapeaux', desc: 'Tous les drapeaux affichés : tape les pays dans l’ordre que tu veux.', sec: 4 },
         { id: 'solo', name: 'Un par un', desc: 'Un drapeau à la fois, avec indices et possibilité de passer.', sec: 6 },
@@ -27,7 +27,7 @@
       answers: c => [c.n, ...c.alt], placeholder: 'Quel est ce pays ?',
     },
     capitals: {
-      title: 'Les capitales', emoji: '🏛️', desc: 'Trouve la capitale de chaque pays.',
+      title: 'Capitales', num: '03', desc: 'Trouve la capitale de chaque pays.',
       modes: [
         { id: 'grid', name: 'Liste complète', desc: 'Tous les pays par continent : tape les capitales dans le désordre.', sec: 5 },
         { id: 'solo', name: 'Un par un', desc: 'Un pays à la fois, avec indices et possibilité de passer.', sec: 7 },
@@ -50,7 +50,7 @@
     body: $('#gameBody'), mapStage: $('#mapStage'), gridStage: $('#gridStage'), grid: $('#grid'), soloStage: $('#soloStage'),
     form: $('#answerForm'), input: $('#answer'), box: $('.answer-box'), toasts: $('#toasts'),
     score: $('#gScore'), total: $('#gTotal'), timer: $('#gTimer'), timerBox: $('#gTimerBox'), progress: $('#gProgress'),
-    combo: $('#combo'), ask: $('#ask'), legend: $('#mapLegend'), review: $('#reviewBar'),
+    ask: $('#ask'), legend: $('#mapLegend'), review: $('#reviewBar'),
     hint: $('#hintBtn'), skip: $('#skipBtn'),
   };
 
@@ -72,8 +72,8 @@
     $('#gSub').textContent = `${G.modes.find(m => m.id === cfg.mode).name} · ${ZONE_NAME[cfg.zone]}`;
     el.total.textContent = '/' + S.total;
     el.score.textContent = '0';
-    el.progress.style.width = '0';
-    el.review.hidden = true; el.ask.hidden = true; el.combo.hidden = true;
+    setProgress(0);
+    el.review.hidden = true; el.ask.hidden = true;
     el.mapStage.hidden = el.gridStage.hidden = el.soloStage.hidden = true;
     el.form.hidden = cfg.mode === 'click';
     el.input.value = ''; el.input.placeholder = G.placeholder;
@@ -123,32 +123,23 @@
       S.streak = (S.cfg.mode === 'type' || S.cfg.mode === 'grid') ? (now - S.lastFind < 6000 ? S.streak + 1 : 1) : S.streak + 1;
       S.lastFind = now;
       S.bestStreak = Math.max(S.bestStreak, S.streak);
-      if (S.streak >= 3 && S.streak % (S.streak >= 10 ? 5 : 1) === 0) showCombo(S.streak);
-      if (S.streak > 0 && S.streak % 10 === 0) confetti({ y: .25, n: 60, spread: .7 });
       el.score.textContent = S.score;
-      const st = el.score.parentElement; st.classList.remove('bump'); void st.offsetWidth; st.classList.add('bump');
     } else S.streak = 0;
     const p = (S.cfg.mode === 'type' || S.cfg.mode === 'grid') ? S.score : S.done;
-    el.progress.style.width = (100 * p / S.total) + '%';
+    setProgress(p / S.total);
   }
-
-  function showCombo(n) {
-    const words = ['', '', '', 'Bien !', 'Super !', 'Génial !', 'Incroyable !', 'En feu !', 'Inarrêtable !', 'Légendaire !'];
-    el.combo.textContent = `🔥 ${n} d’affilée · ${words[Math.min(n, 9)] || 'Légendaire !'}`;
-    el.combo.hidden = false; el.combo.style.animation = 'none'; void el.combo.offsetWidth; el.combo.style.animation = '';
-    clearTimeout(showCombo.t); showCombo.t = setTimeout(() => (el.combo.hidden = true), 1400);
-  }
+  function setProgress(f) { el.progress.style.transform = `scaleX(${f})`; }
 
   function toast(c, txt, bad) {
     const t = document.createElement('div');
-    t.className = 'toast' + (bad ? ' bad' : '');
-    t.innerHTML = `<img src="flags/${c.a2}.svg" alt=""><span></span>`;
+    t.className = 'toast';
+    t.innerHTML = `<img src="flags/thumb/${c.a2}.webp" alt=""><span></span>`;
     t.querySelector('span').textContent = txt;
     el.toasts.prepend(t);
     while (el.toasts.children.length > 3) el.toasts.lastChild.remove();
-    setTimeout(() => t.remove(), 1900);
+    setTimeout(() => t.remove(), 1700);
   }
-  function boxFx(cls) { el.box.classList.remove('ok', 'ko'); void el.box.offsetWidth; el.box.classList.add(cls); }
+  function shakeBox() { el.box.classList.remove('ko'); void el.box.offsetWidth; el.box.classList.add('ko'); }
 
   /* =================== Mode liste (carte « Tout nommer », grilles) =================== */
   function groupByCont(items) {
@@ -164,16 +155,14 @@
     const frag = document.createDocumentFragment();
     list.forEach((c, i) => {
       if (c.sep && S.cfg.zone === 'ALL') {
-        const h = document.createElement('div'); h.className = 'grid-sep'; h.style.setProperty('--cc', `var(--c-${c.c})`);
-        h.innerHTML = `<i></i>${ZONE_NAME[c.c]}`; frag.append(h);
+        const h = document.createElement('div'); h.className = 'grid-sep';
+        h.textContent = ZONE_NAME[c.c]; frag.append(h);
       }
       const t = document.createElement('div');
       t.className = 'tile' + (cap ? ' cap-tile' : '');
-      t.style.setProperty('--cc', `var(--c-${c.c})`);
-      t.style.animationDelay = Math.min(i * 12, 900) + 'ms';
       t.innerHTML = cap
-        ? `<div class="tile-inner"><img src="flags/${c.a2}.svg" alt="" loading="lazy"><div class="cap-info"><div class="cap-country"></div><div class="t-name">?</div></div></div>`
-        : `<div class="tile-inner"><img src="flags/${c.a2}.svg" alt="Drapeau à deviner" loading="lazy"><div class="t-name">?</div></div>`;
+        ? `<div class="tile-inner"><img src="flags/thumb/${c.a2}.webp" alt="" loading="lazy" decoding="async"><div class="cap-info"><div class="cap-country"></div><div class="t-name">?</div></div></div>`
+        : `<div class="tile-inner"><img src="flags/thumb/${c.a2}.webp" alt="Drapeau à deviner" loading="lazy" decoding="async"><div class="t-name">?</div></div>`;
       if (cap) t.querySelector('.cap-country').textContent = c.n;
       S.tiles[c.id] = t; frag.append(t);
     });
@@ -188,7 +177,7 @@
 
   function buildLegend() {
     const conts = S.cfg.zone === 'ALL' ? CONT_ORDER : [S.cfg.zone];
-    el.legend.innerHTML = conts.map(c => `<div class="lg" data-c="${c}" style="--cc:var(--c-${c})"><i></i>${ZONE_NAME[c]}<span class="lg-n"></span></div>`).join('');
+    el.legend.innerHTML = conts.map(c => `<div class="lg" data-c="${c}">${ZONE_NAME[c]}<span class="lg-n"></span></div>`).join('');
     updLegend();
   }
   function updLegend() {
@@ -207,7 +196,7 @@
     if (!k) return;
     const cand = S.items.find(c => !S.found.has(c.id) && S.keys.get(c.id).includes(k));
     if (!cand) {
-      if (force) { boxFx('ko'); sfx.bad(); }
+      if (force) shakeBox();
       return;
     }
     // Si la saisie est le début d'un autre nom encore à trouver (Niger → Nigeria), on laisse le temps de finir.
@@ -220,13 +209,10 @@
     S.found.add(c.id); S.res[c.id] = 'good';
     el.input.value = '';
     scored(true);
-    sfx.good(S.streak);
-    boxFx('ok');
-    const label = S.cfg.game === 'capitals' ? `${c.cap} · ${c.n}` : c.n;
-    toast(c, '✓ ' + label);
+    toast(c, S.cfg.game === 'capitals' ? `${c.cap} · ${c.n}` : c.n);
     if (map) {
       map.set(c.id, 'found');
-      map.celebrate(c.id, getComputedStyle(document.documentElement).getPropertyValue(`--c-${c.c}`).trim(), c.n);
+      map.label(c.id, c.n);
       updLegend();
     }
     tileSet(c, 'found');
@@ -242,17 +228,15 @@
     const c = S.cur;
     if (S.cfg.mode === 'click') {
       el.ask.hidden = false;
-      $('#askFlag').src = `flags/${c.a2}.svg`;
+      $('#askFlag').src = `flags/thumb/${c.a2}.webp`;
       $('#askName').textContent = c.n;
       $('#askTries').innerHTML = '<i></i><i></i><i></i>';
-      el.ask.classList.remove('swap'); void el.ask.offsetWidth; el.ask.classList.add('swap');
     } else {
       const img = $('#soloFlag');
       img.className = ''; void img.offsetWidth;
       img.src = `flags/${c.a2}.svg`; img.alt = S.cfg.game === 'flags' ? 'Drapeau à deviner' : `Drapeau : ${c.n}`;
       img.className = 'in';
-      $('.solo-flag-wrap').classList.add('wave');
-      $('#soloQ').innerHTML = S.cfg.game === 'flags' ? '<small>Quel pays ?</small>' : '<small>Quelle est la capitale de…</small>';
+      $('#soloQ').innerHTML = S.cfg.game === 'flags' ? '<small>Quel est ce pays ?</small>' : '<small>Capitale de</small>';
       if (S.cfg.game === 'capitals') $('#soloQ').append(c.n);
       $('#soloHint').textContent = '';
       const r = $('#soloReveal'); r.textContent = ''; r.className = 'solo-reveal';
@@ -267,21 +251,20 @@
     if (S.busy || !S.cur) return;
     const k = key(el.input.value);
     if (k && S.keys.get(S.cur.id).includes(k)) return soloResult(S.hints ? 'ok' : 'good');
-    if (force && k) { boxFx('ko'); sfx.bad(); const img = $('#soloFlag'); img.className = ''; void img.offsetWidth; img.className = 'out-bad'; }
+    if (force && k) { shakeBox(); const img = $('#soloFlag'); img.className = ''; void img.offsetWidth; img.className = 'out-bad'; }
   }
 
   function soloResult(r) {
     const c = S.cur; S.busy = true; S.res[c.id] = r;
     const img = $('#soloFlag'), rev = $('#soloReveal');
-    $('.solo-flag-wrap').classList.remove('wave');
     if (r === 'bad') {
-      scored(false); sfx.skip();
-      rev.className = 'solo-reveal bad'; rev.textContent = `→ ${mainAnswer(c)}`;
+      scored(false);
+      rev.className = 'solo-reveal bad'; rev.textContent = mainAnswer(c);
       img.className = ''; void img.offsetWidth; img.className = 'out-bad';
       later(next, 1500);
     } else {
-      scored(true); sfx.good(S.streak); boxFx('ok');
-      rev.className = 'solo-reveal good'; rev.textContent = `✓ ${mainAnswer(c)}`;
+      scored(true);
+      rev.className = 'solo-reveal good'; rev.textContent = mainAnswer(c);
       el.input.value = '';
       later(() => { img.className = 'out-good'; }, 250);
       later(next, 700);
@@ -299,7 +282,6 @@
       if (!/\p{L}|\d/u.test(ch)) return ch === ' ' ? '  ' : ch;
       return shown++ < S.hints ? ch : '_';
     }).join('');
-    sfx.click();
     el.input.focus();
   }
 
@@ -310,15 +292,14 @@
     if (id === c.id) {
       const r = S.tries === 0 ? 'good' : 'ok';
       S.res[c.id] = r; map.set(c.id, r);
-      map.celebrate(c.id, r === 'good' ? '#33d6a6' : '#ffc94a', c.n);
-      scored(true); sfx.good(S.streak); updLegend();
+      map.label(c.id, c.n);
+      scored(true); updLegend();
       S.busy = true; later(next, 450);
     } else {
       S.tries++;
       $$('#askTries i').forEach((d, i) => d.classList.toggle('used', i < S.tries));
       map.flashWrong(id);
-      map.celebrate(id, '#ff6b6b', map.byId[id].n);
-      sfx.bad();
+      map.label(id, map.byId[id].n);
       if (S.tries >= 3) revealTarget();
     }
   }
@@ -350,7 +331,7 @@
       if (S.res[c.id] === 'missed') { map && map.set(c.id, 'missed'); tileSet(c, 'missed'); }
     }
     if (map) map.reveal = true;
-    el.form.hidden = true; el.ask.hidden = true; el.combo.hidden = true;
+    el.form.hidden = true; el.ask.hidden = true;
     $('#giveUpBtn').hidden = true;
 
     const pct = Math.round(100 * S.score / S.total);
@@ -368,25 +349,17 @@
   function showResults({ pct, elapsed, best, isRec, reason }) {
     const m = $('#results');
     m.hidden = false;
-    $('#rPct').textContent = '0%';
+    $('#rPct').textContent = pct + ' %';
     $('#rCount').textContent = `${S.score} / ${S.total}`;
-    const fg = $('#ringFg'); fg.style.transition = 'none'; fg.style.strokeDashoffset = 326.7; void fg.getBoundingClientRect();
-    fg.style.transition = ''; fg.style.strokeDashoffset = 326.7 * (1 - pct / 100);
-    fg.style.stroke = pct >= 80 ? 'var(--teal)' : pct >= 50 ? 'var(--gold)' : 'var(--coral)';
-    // compteur animé
-    const t0 = performance.now();
-    (function count(t) { const k = Math.min(1, (t - t0) / 1500); $('#rPct').textContent = Math.round(pct * (1 - Math.pow(1 - k, 3))) + '%'; if (k < 1) requestAnimationFrame(count); })(t0);
-    const stars = pct === 100 ? 3 : pct >= 75 ? 2 : pct >= 40 ? 1 : 0;
-    $$('#rStars span').forEach((s, i) => { s.classList.remove('on'); void s.offsetWidth; s.classList.toggle('on', i < stars); });
-    const titles = [[100, 'Parfait ! 🌍'], [90, 'Exceptionnel !'], [75, 'Excellent !'], [50, 'Bien joué !'], [25, 'Pas mal !'], [0, 'Il faut réviser !']];
+    const bar = $('#rBar'); bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; void bar.offsetWidth;
+    bar.style.transition = ''; bar.style.transform = `scaleX(${pct / 100})`;
+    const titles = [[100, 'Sans faute.'], [90, 'Excellent.'], [75, 'Très bien.'], [50, 'Bien.'], [25, 'Encore un effort.'], [0, 'À réviser.']];
     $('#rTitle').textContent = titles.find(([p]) => pct >= p)[1];
-    $('#rMsg').textContent = reason === 'time' ? 'Temps écoulé !' : reason === 'done' ? 'Tout trouvé — chapeau bas.' : 'Partie terminée.';
+    $('#rMsg').textContent = reason === 'time' ? 'Temps écoulé' : reason === 'done' ? 'Tout trouvé' : 'Partie terminée';
     $('#rTime').textContent = fmt(elapsed);
     $('#rStreak').textContent = S.bestStreak;
     $('#rBest').textContent = best ? `${best.score}/${S.total}` : '—';
     $('#rBadge').hidden = !isRec;
-    if (pct >= 50) { sfx.win(); confetti({ n: pct === 100 ? 320 : 150, y: .35 }); if (pct === 100) setTimeout(() => confetti({ x: .2, n: 120 }), 400), setTimeout(() => confetti({ x: .8, n: 120 }), 700); }
-    else sfx.end();
   }
 
   function review() {
@@ -423,10 +396,15 @@
   }));
   // Touche Échap : effacer la saisie
   el.input.addEventListener('keydown', e => { if (e.key === 'Escape') el.input.value = ''; });
+  // Redessiner la carte seulement si la largeur change (le clavier mobile ne modifie que la hauteur)
   let rt;
   addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = setTimeout(() => { if (map && !el.mapStage.hidden) { const r = map.reveal; map.build(); map.reveal = r; } }, 250);
+    rt = setTimeout(() => {
+      if (!map || el.mapStage.hidden) return;
+      const w = el.mapStage.clientWidth;
+      if (Math.abs(w - map.W) > 40) { const r = map.reveal; map.build(); map.reveal = r; }
+    }, 250);
   });
 
   const again = () => { $('#results').hidden = true; start(S.cfg); };

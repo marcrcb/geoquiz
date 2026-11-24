@@ -15,19 +15,19 @@ Pour chaque partie : région (Monde, Europe, Afrique, Asie, Amérique du Nord, A
 - Saisie tolérante : accents, majuscules, tirets et articles ignorés ; variantes acceptées (Birmanie/Myanmar, Kiev/Kyiv, RDC…).
 - Quand un nom est le début d’un autre (Niger → Nigeria, Soudan → Soudan du Sud), l’appli attend une seconde avant de valider.
 - Carte interactive : zoom molette/pincement, déplacement, micro-États en pastilles cliquables, légende par continent.
-- Animations : séries 🔥, confettis, drapeaux qui se retournent, ondes sur la carte, sons synthétisés (coupables).
+- Interface sobre en noir et blanc (seuls les drapeaux sont en couleur), pensée pour rester fluide à 60 images/s, y compris sur téléphone.
 
 ## Données (à jour 2026)
 
 - **197 pays** : les 193 membres de l’ONU + Vatican, Palestine, Kosovo, Taïwan.
 - Carte : Natural Earth 1:50m (`world-atlas`), Somaliland fusionné avec la Somalie, Chypre du Nord avec Chypre.
-- Drapeaux : `flag-icons` (SVG). Noms et capitales en français : `scripts/pays.txt` (ex. Ciudad de la Paz, nouvelle capitale de la Guinée équatoriale depuis janvier 2026 ; Malabo reste accepté).
+- Drapeaux : `flag-icons` (SVG), avec des vignettes WebP pré-calculées pour les grilles. Noms et capitales en français : `scripts/pays.txt` (ex. Ciudad de la Paz, nouvelle capitale de la Guinée équatoriale depuis janvier 2026 ; Malabo reste accepté).
 
 ## Développement
 
 ```bash
 npm install
-npm run build   # régénère data/, flags/, vendor/, fonts/ et precache.js
+npm run build   # régénère data/, flags/ (SVG + vignettes), vendor/, fonts/ et precache.js
 npm run serve   # http://localhost:8080
 ```
 

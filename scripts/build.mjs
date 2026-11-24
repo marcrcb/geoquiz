@@ -75,12 +75,17 @@ fs.writeFileSync(out('data/countries.js'), '// Généré par scripts/build.mjs �
   JSON.stringify(countries) + ';\n');
 
 // ---------- 3. Drapeaux, librairies, polices ----------
+// SVG nets pour les grands affichages, vignettes WebP pré-calculées pour les grilles (rapides à décoder)
+const sharp = require('sharp');
+fs.mkdirSync(out('flags/thumb'), { recursive: true });
 for (const c of countries) {
-  fs.copyFileSync(path.join(NM, 'flag-icons/flags/4x3', c.a2 + '.svg'), out('flags', c.a2 + '.svg'));
+  const src = path.join(NM, 'flag-icons/flags/4x3', c.a2 + '.svg');
+  fs.copyFileSync(src, out('flags', c.a2 + '.svg'));
+  await sharp(src, { density: 200 }).resize(320, 240, { fit: 'cover' }).webp({ quality: 82 }).toFile(out('flags/thumb', c.a2 + '.webp'));
 }
 fs.copyFileSync(path.join(NM, 'd3/dist/d3.min.js'), out('vendor/d3.min.js'));
 fs.copyFileSync(path.join(NM, 'topojson-client/dist/topojson-client.min.js'), out('vendor/topojson-client.min.js'));
-for (const [pkg, w] of [['fredoka', 600], ['fredoka', 700], ['nunito', 400], ['nunito', 700], ['nunito', 800]]) {
+for (const [pkg, w] of [['inter', 400], ['inter', 500], ['inter', 600], ['inter', 700]]) {
   const f = `${pkg}-latin-${w}-normal.woff2`;
   fs.copyFileSync(path.join(NM, '@fontsource', pkg, 'files', f), out('fonts', f));
 }
