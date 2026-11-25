@@ -162,6 +162,8 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .map-svg svg:active { cursor: grabbing; }
 .sphere { fill: #0f0f0f; stroke: #262626; }
 .graticule { fill: none; stroke: #191919; }
+/* lignes de latitude/longitude et contour du globe : épaisseur constante à l'écran, quel que soit le zoom */
+.sphere, .graticule { vector-effect: non-scaling-stroke; }
 .decor { fill: #1e1e1e; stroke: none; }
 .country { fill: var(--land); stroke: var(--bg); stroke-linejoin: round; }
 .country.off { fill: var(--land-off); pointer-events: none; }

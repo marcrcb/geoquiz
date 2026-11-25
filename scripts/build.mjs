@@ -52,41 +52,49 @@ for (const c of countries) {
 }
 
 // ---------- 2. Carte ----------
-const world = JSON.parse(fs.readFileSync(path.join(NM, 'world-atlas/countries-50m.json')));
 const numToIso = Object.fromEntries(wc.filter(c => c.ccn3).map(c => [c.ccn3, c.cca3]));
 const playable = new Set(countries.map(c => c.id));
-const geoms = world.objects.countries.geometries;
-const groups = new Map(); // id -> [geoms]
-const decor = [];
-for (const g of geoms) {
-  const nm = g.properties.name;
-  let id = numToIso[g.id];
-  if (nm === 'Kosovo') id = 'XKX';
-  if (nm === 'Somaliland') id = 'SOM';
-  if (nm === 'N. Cyprus') id = 'CYP';
-  if (nm === 'Siachen Glacier') id = 'IND';
-  if (nm === 'Antarctica') continue;
-  if (id && playable.has(id)) {
-    if (!groups.has(id)) groups.set(id, []);
-    groups.get(id).push(g);
-  } else decor.push({ ...g, id: undefined, properties: {} });
+// Territoires sans code ISO rattachés à un pays jouable (les autres restent en décor)
+const ATTACH = { 'Kosovo': 'XKX', 'Somaliland': 'SOM', 'N. Cyprus': 'CYP', 'Siachen Glacier': 'IND', 'Baikonur': 'KAZ' };
+
+/** Topologie prête à l'emploi : un objet par pays jouable (identifiant ISO3), le reste en décor. */
+function prepare(file, keep, withDecor) {
+  const world = JSON.parse(fs.readFileSync(path.join(NM, 'world-atlas', file)));
+  const groups = new Map(), decor = [];
+  for (const g of world.objects.countries.geometries) {
+    const nm = g.properties.name;
+    if (nm === 'Antarctica') continue;
+    const id = ATTACH[nm] || numToIso[g.id];
+    if (id && playable.has(id)) {
+      if (!groups.has(id)) groups.set(id, []);
+      groups.get(id).push(g);
+    } else if (withDecor) decor.push({ ...g, id: undefined, properties: {} });
+  }
+  const geoms = [];
+  for (const [id, gs] of groups) {
+    const geom = gs.length === 1 ? { ...gs[0] } : topo.mergeArcs(world, gs);
+    geom.id = id; geom.properties = {};
+    geoms.push(geom);
+  }
+  world.objects = { countries: { type: 'GeometryCollection', geometries: geoms } };
+  if (withDecor) world.objects.decor = { type: 'GeometryCollection', geometries: decor };
+  // Simplification Visvalingam : on garde en priorité les points qui dessinent la forme
+  let t = simp.presimplify(world);
+  t = simp.simplify(t, simp.quantile(t, keep));
+  t = simp.filter(t, simp.filterWeight(t, 0.0001));
+  t.arcs = t.arcs.map(a => a.map(p => [p[0], p[1]]));
+  return topo.quantize(t, withDecor ? 1e5 : 1e6);
 }
-const newGeoms = [];
-for (const [id, gs] of groups) {
-  const geom = gs.length === 1 ? { ...gs[0] } : topo.mergeArcs(world, gs);
-  geom.id = id; geom.properties = {};
-  newGeoms.push(geom);
-}
-world.objects = { countries: { type: 'GeometryCollection', geometries: newGeoms },
-                  decor: { type: 'GeometryCollection', geometries: decor } };
-let t = simp.presimplify(world);
-t = simp.simplify(t, simp.quantile(t, 0.35));
-t = simp.filter(t, simp.filterWeight(t, 0.0001));
-t.arcs = t.arcs.map(a => a.map(p => [p[0], p[1]]));
-t = topo.quantize(t, 1e5);
-const missing = countries.filter(c => !newGeoms.find(g => g.id === c.id)).map(c => c.id);
+
+// Carte légère (vue d'ensemble) et carte détaillée (1:10 M), chargée seulement quand on zoome
+const t = prepare('countries-50m.json', 0.35, true);
+const hd = prepare('countries-10m.json', 0.3, false);
+const missing = countries.filter(c => !t.objects.countries.geometries.find(g => g.id === c.id)).map(c => c.id);
 console.log('Pays sans tracé (affichés en point) :', missing.join(', '));
 for (const c of countries) c.noShape = missing.includes(c.id) || undefined;
+const hdIds = new Set(hd.objects.countries.geometries.map(g => g.id));
+console.log('Tracés détaillés :', hdIds.size, 'pays ; absents :', countries.filter(c => !hdIds.has(c.id)).map(c => c.id).join(' ') || 'aucun');
+fs.writeFileSync(out('data/world-hd.js'), '// Généré par scripts/build.mjs — tracés détaillés (Natural Earth 1:10 M)\nwindow.WORLD_HD=' + JSON.stringify(hd) + ';\n');
 
 fs.writeFileSync(out('data/world.js'), 'window.WORLD=' + JSON.stringify(t) + ';\n');
 
@@ -108,7 +116,19 @@ function mainland(f) {
   }
   return { ...f, geometry: { type: 'MultiPolygon', coordinates: kept.map(p => p.c) } };
 }
-for (const f0 of topo.feature(t, t.objects.countries).features) {
+/** Retire les points à moins de `tol` px du précédent : détail fin sans alourdir le fichier */
+function thin(d, tol = 2) {
+  return d.split('M').filter(Boolean).map(ring => {
+    const pts = ring.replace(/Z/g, '').split('L').map(q => q.split(',').map(Number));
+    const kept = [pts[0]];
+    for (const q of pts.slice(1)) { const l = kept[kept.length - 1]; if (Math.hypot(q[0] - l[0], q[1] - l[1]) >= tol) kept.push(q); }
+    // îlots de moins de 2,5 px : invisibles à cette taille, on les retire
+    const xs = kept.map(q => q[0]), ys = kept.map(q => q[1]);
+    if (Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) < 2.5) return '';
+    return kept.length >= 3 ? 'M' + kept.map(q => q.join(',')).join('L') + 'Z' : '';
+  }).join('');
+}
+for (const f0 of topo.feature(hd, hd.objects.countries).features) {
   const f = mainland(f0);
   const [lon, lat] = d3.geoCentroid(f);
   const proj = d3.geoAzimuthalEqualArea().rotate([-lon, -lat]).fitExtent([[14, 14], [SW - 14, SH - 14]], f);
@@ -117,7 +137,7 @@ for (const f0 of topo.feature(t, t.objects.countries).features) {
   // On écarte les formes illisibles : micro-États réduits à quelques points, archipels trop dispersés
   const [[x0, y0], [x1, y1]] = p.bounds(f);
   if (pts < 14 || p.area(f) < (x1 - x0) * (y1 - y0) * 0.05) continue;
-  shapes[f.id] = p(f);
+  shapes[f.id] = thin(p(f));
   // Projection à aires égales : km par pixel (linéaire) pour comparer deux pays à la même échelle
   scale[f.id] = +Math.sqrt(d3.geoArea(f) * 6371 ** 2 / p.area(f)).toFixed(3);
 }

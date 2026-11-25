@@ -40,6 +40,8 @@
       this.state = {}; this.reveal = false; this.k = 1;
       this.tip = tip || $('#tooltip'); this.tipId = null;
       this.build();
+      // préchargement discret des tracés détaillés, pour que le premier zoom soit immédiat
+      (window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => loadHD());
     }
 
     build() {
@@ -68,11 +70,12 @@
       g.append('path').attr('class', 'decor').attr('d', path(decor));
 
       this.feats = Object.fromEntries(feats.map(f => [f.id, f]));
-      this._mb = {};
-      this.paths = {};
+      this._mb = {}; this._lb = {}; this._hdp = {}; this._sig = {};
+      this.paths = {}; this._ld = {}; this._hd = {}; this.hdOn = new Set();
       const countries = g.append('g').attr('stroke-width', STROKE); this.countriesG = countries;
       for (const f of feats) {
-        const el = countries.append('path').attr('d', path(f)).attr('class', 'country' + (this.inZone(f.id) ? '' : ' off')).node();
+        const d = path(f); this._ld[f.id] = d;
+        const el = countries.append('path').attr('d', d).attr('class', 'country' + (this.inZone(f.id) ? '' : ' off')).node();
         el.__id = f.id; this.paths[f.id] = el;
       }
 
@@ -126,7 +129,7 @@
         .on('pointerleave', () => this.hover(null));
 
       this.zoom = d3.zoom().scaleExtent([1, 60]).translateExtent([[-W * .5, -H * .5], [W * 1.5, H * 1.5]])
-        .on('start', () => this.hover(null))
+        .on('start', () => { this.hover(null); this.cancelLOD(); })
         .on('zoom', e => {
           const k = e.transform.k, kChanged = k !== this.k;
           this.k = k;
@@ -142,7 +145,7 @@
             if (this.onZoom) this.onZoom(k);
           }
         })
-        .on('end', e => { if (this.onZoomEnd) this.onZoomEnd(e.transform.k); });
+        .on('end', e => { this.updateLOD(); if (this.onZoomEnd) this.onZoomEnd(e.transform.k); });
       svg.call(this.zoom).on('dblclick.zoom', null);
       this.k = 1;
       for (const id in this.state) this.set(id, this.state[id]);
@@ -266,6 +269,90 @@
       this.tip.style.transform = `translate(${e.clientX - this.rect.left}px, ${e.clientY - this.rect.top}px) translate(-50%, calc(-100% - 12px))`;
     }
   }
+
+  /* ---------- Niveau de détail ----------
+     Vue d'ensemble : tracés légers (1:50 M). En zoomant, seuls les pays visibles à l'écran passent
+     sur les tracés détaillés (1:10 M), chargés à la première utilisation : la carte reste fluide. */
+  const LOD_K = 2.2;
+  // Paliers de finesse : écart minimal entre deux points ≈ 1,5 px à l'écran (0 = tracé complet)
+  const LEVELS = [[14, 0], [7, .2], [4, .35], [LOD_K, .6]];
+  const tolFor = k => LEVELS.find(([kk]) => k >= kk)[1];
+  let HD = null, hdLoading = null;
+  function loadHD() {
+    if (HD) return Promise.resolve(HD);
+    if (!hdLoading) hdLoading = new Promise(res => {
+      const done = () => { HD = Object.fromEntries(topojson.feature(WORLD_HD, WORLD_HD.objects.countries).features.map(f => [f.id, f])); res(HD); };
+      if (window.WORLD_HD) return done();
+      const sc = document.createElement('script');
+      sc.src = 'data/world-hd.js'; sc.onload = done; sc.onerror = () => { hdLoading = null; };
+      document.head.append(sc);
+    });
+    return hdLoading;
+  }
+  /** Allège un tracé SVG « M…L…Z » : retire les points à moins de `tol` px du précédent */
+  function thin(d, tol) {
+    return d.split('M').filter(Boolean).map(ring => {
+      const pts = ring.replace(/Z/g, '').split('L');
+      const kept = [pts[0]]; let [lx, ly] = pts[0].split(',').map(Number);
+      for (let i = 1; i < pts.length; i++) { const [x, y] = pts[i].split(',').map(Number); if (Math.abs(x - lx) + Math.abs(y - ly) >= tol) { kept.push(pts[i]); lx = x; ly = y; } }
+      return kept.length >= 3 ? 'M' + kept.join('L') + 'Z' : '';
+    }).join('');
+  }
+  /** Découpe un pays détaillé en morceaux (îles, enclaves) : tracé fin, tracé allégé, cadre */
+  MapView.prototype.hdParts = function (id) {
+    this._hdp = this._hdp || {};
+    if (this._hdp[id]) return this._hdp[id];
+    const g = HD[id].geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+    return (this._hdp[id] = polys.map(c => {
+      const poly = { type: 'Polygon', coordinates: c }, fine = this.path(poly) || '';
+      return { fine, coarse: thin(fine, .9), lv: {}, b: this.path.bounds(poly) };
+    }));
+  };
+  /** Planifie la mise à jour du détail : découpée en tranches de ~6 ms, annulée si un zoom reprend */
+  MapView.prototype.updateLOD = function () {
+    this.cancelLOD();
+    const job = this._lodJob = { ids: null, i: 0 };
+    const step = () => {
+      if (this._lodJob !== job || !this.svg.node().isConnected) return;
+      if (!job.ids && !this.lodSetup(job)) return;
+      const t0 = performance.now();
+      while (job.i < job.ids.length && performance.now() - t0 < 6) this.lodOne(job, job.ids[job.i++]);
+      if (job.i < job.ids.length) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  MapView.prototype.cancelLOD = function () { this._lodJob = null; };
+  MapView.prototype.lodSetup = function (job) {
+    const k = d3.zoomTransform(this.svg.node()).k;
+    if (k < LOD_K) { for (const id of this.hdOn) this.paths[id].setAttribute('d', this._ld[id]); this.hdOn.clear(); this._sig = {}; return false; }
+    if (!HD) { const me = this; loadHD().then(() => me.svg.node().isConnected && me.updateLOD()); return false; }
+    // fenêtre visible en coordonnées de carte (avec une marge)
+    const t = d3.zoomTransform(this.svg.node()), mx = this.W * .25 / k, my = this.H * .25 / k;
+    const x0 = -t.x / k - mx, x1 = (this.W - t.x) / k + mx, y0 = -t.y / k - my, y1 = (this.H - t.y) / k + my;
+    job.k = k; job.inView = b => b[1][0] >= x0 && b[0][0] <= x1 && b[1][1] >= y0 && b[0][1] <= y1;
+    this._lb = this._lb || {}; this._sig = this._sig || {};
+    job.ids = Object.keys(this.paths);
+    return true;
+  };
+  MapView.prototype.lodOne = function (job, id) {
+    const k = job.k, inView = job.inView;
+    {
+      const lb = this._lb[id] || (this._lb[id] = this.path.bounds(this.feats[id]));
+      let sig = '';
+      if (HD[id] && inView(lb)) {
+        // détail seulement pour les morceaux visibles ; les parties lointaines restent allégées
+        const parts = this.hdParts(id), vis = parts.map(q => inView(q.b));
+        if (vis.some(Boolean)) {
+          const tol = tolFor(k);
+          sig = tol + ':' + vis.map(v => (v ? 1 : 0)).join('');
+          const at = q => (tol ? (q.lv[tol] ??= thin(q.fine, tol)) : q.fine);
+          if (this._sig[id] !== sig) this.paths[id].setAttribute('d', parts.map((q, i) => (vis[i] ? at(q) : q.coarse)).join(''));
+        }
+      }
+      if (sig) { this.hdOn.add(id); this._sig[id] = sig; }
+      else if (this.hdOn.has(id)) { this.paths[id].setAttribute('d', this._ld[id]); this.hdOn.delete(id); delete this._sig[id]; }
+    }
+  };
 
   /** Petite carte statique de l'accueil (dessinée une seule fois, sans animation). */
   MapView.drawStatic = function (host) {

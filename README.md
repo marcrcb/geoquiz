@@ -32,11 +32,11 @@ Pour chaque partie : région (Monde, Europe, Afrique, Asie, Amérique du Nord, A
 ## Données (à jour 2026)
 
 - **197 pays** : les 193 membres de l’ONU + Vatican, Palestine, Kosovo, Taïwan.
-- Carte : Natural Earth 1:50m (`world-atlas`), Somaliland fusionné avec la Somalie, Chypre du Nord avec Chypre.
+- Carte : Natural Earth (`world-atlas`) — tracés légers 1:50 M pour la vue d’ensemble, tracés détaillés 1:10 M (`data/world-hd.js`, chargés à la demande) pour les pays visibles quand on zoome, avec une finesse adaptée au zoom. Somaliland fusionné avec la Somalie, Chypre du Nord avec Chypre, Baïkonour avec le Kazakhstan.
 - Drapeaux : `flag-icons` (SVG), avec des vignettes WebP pré-calculées pour les grilles.
 - Frontières terrestres : `world-countries`, restreintes aux 197 pays (frontière maritime Inde – Sri Lanka retirée).
 - Coordonnées des capitales : GeoNames (`scripts/capitales-coords.json`), Ciudad de la Paz ajoutée à la main.
-- Silhouettes : pré-calculées au build (`data/shapes.js`), territoire principal uniquement (sans Guyane, Hawaï, île de Pâques…). Noms et capitales en français : `scripts/pays.txt` (ex. Ciudad de la Paz, nouvelle capitale de la Guinée équatoriale depuis janvier 2026 ; Malabo reste accepté).
+- Silhouettes : pré-calculées au build à partir des tracés détaillés (`data/shapes.js`), territoire principal uniquement (sans Guyane, Hawaï, île de Pâques…). Noms et capitales en français : `scripts/pays.txt` (ex. Ciudad de la Paz, nouvelle capitale de la Guinée équatoriale depuis janvier 2026 ; Malabo reste accepté).
 
 ## Développement
 
