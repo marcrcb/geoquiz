@@ -268,8 +268,10 @@
         S.chain.push(hit); A.el.input.value = '';
         if (hit !== S.route.b) { A.map.set(hit, 'found'); A.map.tag(hit, byId[hit].n); }
         A.map.label(hit, byId[hit].n);
+        // Jonction faite : le pays tapé touche l'arrivée, pas besoin de taper l'arrivée elle-même
+        if (hit !== S.route.b && S.adj[hit].includes(S.route.b)) S.chain.push(S.route.b);
         this.panel();
-        if (hit === S.route.b) this.arrived();
+        if (S.chain[S.chain.length - 1] === S.route.b) this.arrived();
         return;
       }
       if (force && k) {
