@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { home } from './helpers.mjs';
 
-test('accueil : 7 jeux, atlas, thème mémorisé', async ({ page }) => {
+test('accueil : 8 jeux, atlas, thème mémorisé', async ({ page }) => {
   const errors = await home(page);
-  await expect(page.locator('[data-game]')).toHaveCount(7);
-  await expect(page.locator('#gameCards2 .gc-num')).toHaveText(['04', '05', '06', '07']);
+  await expect(page.locator('[data-game]')).toHaveCount(8);
+  await expect(page.locator('#gameCards2 .gc-num')).toHaveText(['04', '05', '06', '07', '08']);
   await expect(page.locator('#openAtlas')).toBeVisible();
 
   const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);

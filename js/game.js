@@ -65,6 +65,16 @@
       options: [{ id: 'rounds', label: 'Trajets', choices: [['5', '5'], ['10', '10']] }],
       placeholder: 'Pays suivant…',
     },
+    physique: {
+      title: 'Géographie physique', num: '08', desc: 'Fleuves, montagnes et déserts : situe-les sur la carte ou retrouve leur nom.',
+      modes: [
+        { id: 'locate', name: 'Situer', desc: 'Un repère est donné : clique dessus sur la carte. 3 essais.', sec: 10, custom: 'physLocate' },
+        { id: 'name', name: 'Nommer', desc: 'Un repère est surligné sur la carte : tape son nom, avec indices.', sec: 12, custom: 'physName' },
+      ],
+      options: [{ id: 'cat', label: 'Repères', choices: [['all', 'Tous'], ['f', 'Fleuves'], ['m', 'Montagnes'], ['d', 'Déserts']] }],
+      placeholder: 'Nom du repère…',
+      note: 'Données Natural Earth : 78 fleuves, 63 chaînes de montagnes et 26 déserts, noms en français.',
+    },
     scale: {
       title: 'À l’échelle', num: '06', desc: 'Deux pays : donne au second sa vraie taille, avec le premier comme seul repère.',
       modes: [{ id: 'resize', name: 'Ajuster la taille', desc: 'Agrandis ou rétrécis librement le second pays à côté du premier, puis valide : chaque manche est notée sur 100.', custom: 'scale' }],

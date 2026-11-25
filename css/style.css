@@ -415,6 +415,20 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .ap-shape figcaption { color: var(--dim); font-size: .75rem; margin-top: 4px; }
 .ap-code { color: var(--dim); font-size: .75rem; margin: 14px 0 0; }
 
+/* ============ Géographie physique ============ */
+.phys { vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.phys.river { fill: none; stroke: var(--text); stroke-width: 2.5px; }
+.phys.area { fill: var(--text); fill-opacity: .18; stroke: var(--text); stroke-width: 1.5px; stroke-dasharray: 5 3; }
+.phys.target.river { stroke-width: 4px; animation: physPulse 1s ease-in-out infinite alternate; }
+.phys.target.area { fill-opacity: .4; animation: physPulse 1s ease-in-out infinite alternate; }
+@keyframes physPulse { to { opacity: .45; } }
+.phys.good.area { fill-opacity: .45; stroke-dasharray: none; }
+.phys.ok.river { stroke: var(--ok); }
+.phys.ok.area { fill: var(--ok); stroke: var(--ok); fill-opacity: .4; }
+.phys.missed.river { stroke: var(--focus); stroke-dasharray: 4 4; }
+.phys.missed.area { fill: url(#hatch); fill-opacity: 1; stroke: var(--focus); }
+.mp-hint { margin-top: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .25em; }
+
 /* ============ Bandeau de mise à jour ============ */
 .update-banner { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; background: var(--bg); color: var(--text); border: 1px solid var(--text); border-radius: 12px; box-shadow: 0 8px 30px var(--shadow); font-weight: 500; font-size: .92rem; animation: rise .25s ease both; max-width: calc(100% - 24px); }
 .update-banner .icon-btn { width: 32px; height: 32px; font-size: .85rem; }

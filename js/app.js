@@ -12,6 +12,7 @@
     ['gameCards2', 'neighbors', 'Nomme tous les pays qui touchent celui affiché.'],
     ['gameCards2', 'scale', 'Redimensionne un pays à sa vraie taille, avec un autre pour seul repère.'],
     ['gameCards2', 'path', 'Va d’un pays à l’autre en passant par des voisins.'],
+    ['gameCards2', 'physique', 'Fleuves, montagnes et déserts : situe-les ou nomme-les sur la carte.'],
   ];
   for (const [host, id, txt] of CARDS) {
     const G = GAMES[id];

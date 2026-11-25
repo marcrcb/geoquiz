@@ -513,4 +513,195 @@
       };
     },
   });
+
+  /* =====================================================================
+     Géographie physique : fleuves, montagnes, déserts — situer ou nommer
+     ===================================================================== */
+  // nom, démonstratif et interrogatif accordés (« cette montagne », « Quel est ce fleuve ? »)
+  const KIND = { f: { n: 'fleuve', ce: 'ce', q: 'Quel est ce' }, m: { n: 'montagne', ce: 'cette', q: 'Quelle est cette' }, d: { n: 'désert', ce: 'ce', q: 'Quel est ce' } };
+  const PHYS = (window.PHYSIQUE || []).map((x, i) => ({ ...x, id: 'P' + i }));
+  /** Réponses acceptées : nom, variantes, et forme courte sans « désert du », « monts », « (Espagne) »… */
+  function physKeys(x) {
+    const short = s => s.replace(/\s*\(.*\)$/, '')
+      .replace(/^(désert|grand désert|monts?|montagnes|massif|chaîne|cordillère|hauts plateaux|plateau|massif)\s+(de la |de l’|de l'|des |du |de |d’|d')?/i, '');
+    return [...new Set([x.n, ...x.alt, short(x.n), ...x.alt.map(short)].map(A.key).filter(Boolean))];
+  }
+  const physItems = cfg => PHYS.filter(x => (cfg.zone === 'ALL' || x.c === cfg.zone) && (!cfg.cat || cfg.cat === 'all' || x.t === cfg.cat));
+  /** Point où écrire le nom : milieu du plus long tronçon (fleuve) ou centre (région) */
+  function physLabelPoint(x) {
+    if (x.t !== 'f') return d3.geoCentroid(x.g);
+    const line = x.g.coordinates.reduce((a, b) => (b.length > a.length ? b : a));
+    return line[line.length >> 1];
+  }
+  /** Calque des repères dans la carte (un tracé par repère, masqué tant qu'il n'est pas révélé) */
+  function physLayer(m) {
+    const S = A.S;
+    const g = m.g.append('g').attr('class', 'phys-layer');
+    m.fxLines.raise(); m.fx.raise();
+    S.physEl = {};
+    for (const x of S.items) {
+      const el = g.append('path').attr('d', m.path(x.g)).attr('class', 'phys ' + (x.t === 'f' ? 'river' : 'area')).style('display', 'none').node();
+      el.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'title')).textContent = x.n;
+      S.physEl[x.id] = el;
+    }
+    // états déjà connus (après un redimensionnement)
+    for (const id in S.physSt || {}) physShow(id, S.physSt[id]);
+  }
+  function physShow(id, st) {
+    const S = A.S, el = S.physEl[id];
+    (S.physSt ||= {})[id] = st;
+    if (!el) return;
+    el.style.display = st ? '' : 'none';
+    el.classList.remove('target', 'good', 'ok', 'bad', 'missed');
+    if (st && st !== 'shown') el.classList.add(st);
+  }
+  function physZoom(x, maxK = 12) {
+    const [[w, s], [e, n]] = d3.geoBounds(x.g);
+    A.map.zoomToIds([], [[w, s], [e, n], [w, n], [e, s]], maxK);
+  }
+  /** Distance (px à l'écran) entre un point de la carte et le repère ; 0 si le point est dans la région */
+  function physDist(x, ll) {
+    const m = A.map, k = d3.zoomTransform(m.svg.node()).k, q = m.proj(ll);
+    if (!q) return Infinity;
+    if (x.t !== 'f' && d3.geoContains(x.g, ll)) return 0;
+    x._px ||= {};
+    const pts = x._px[`${m.zone}:${m.W}:${m.H}`] ||= (x.t === 'f' ? x.g.coordinates : x.g.coordinates.flat()).map(l => l.map(p => m.proj(p)).filter(Boolean));
+    let best = Infinity;
+    for (const l of pts) for (let i = 1; i < l.length; i++) {
+      const [ax, ay] = l[i - 1], [bx, by] = l[i], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, ((q[0] - ax) * dx + (q[1] - ay) * dy) / L)) : 0;
+      best = Math.min(best, Math.hypot(q[0] - ax - t * dx, q[1] - ay - t * dy));
+    }
+    return best * k;
+  }
+  function physReview() {
+    const S = A.S;
+    A.map.clearFx();
+    for (const x of S.items) {
+      const r = S.res[x.id];
+      physShow(x.id, r === 'good' || r === 'ok' ? 'good' : 'missed');
+    }
+  }
+  const physSummary = () => {
+    const S = A.S, b = best();
+    return { small: `${S.score} / ${S.total} repères`, stats: [['Temps', fmt(S.elapsed)], ['Meilleure série', String(S.bestStreak)], ['Record', b ? `${b.score}/${b.total}` : '—']] };
+  };
+
+  // --- Situer : cliquer sur le repère demandé (3 essais) ---
+  register('physLocate', {
+    items: physItems,
+    start() {
+      const S = A.S;
+      S.seq = A.shuffle(S.items);
+      const m = A.newMap({ zone: S.cfg.zone, onPoint: p => this.click(p), markers: false });
+      physLayer(m);
+      A.el.form.hidden = true;
+      this.next();
+    },
+    redraw() { physLayer(A.map); },
+    next() {
+      const S = A.S;
+      S.cur = S.seq.find(x => !S.res[x.id]); S.tries = 0; S.busy = false;
+      if (!S.cur) return A.end('done');
+      A.map.clearFx();
+      A.ask(null, `Situe ${KIND[S.cur.t].ce} ${KIND[S.cur.t].n}`, S.cur.n, { flag: false, tries: true });
+      document.querySelector('#askTries').innerHTML = '<i></i><i></i><i></i>';
+    },
+    click(ll) {
+      const S = A.S, x = S.cur;
+      if (!S || S.ended || S.paused || S.busy || !x) return;
+      // tolérance : 14 px à l'écran pour un fleuve, 10 px autour d'une région
+      if (physDist(x, ll) <= (x.t === 'f' ? 14 : 10)) {
+        const r = S.tries ? 'ok' : 'good';
+        S.res[x.id] = r; S.busy = true;
+        physShow(x.id, r); A.map.text(physLabelPoint(x), x.n);
+        A.scored(true);
+        A.later(() => { physShow(x.id, ''); this.next(); }, 1300);
+      } else {
+        S.tries++;
+        document.querySelectorAll('#askTries i').forEach((d, i) => d.classList.toggle('used', i < S.tries));
+        A.map.dot(ll, 'guess', 4);
+        A.shakeBox();
+        if (S.tries >= 3) this.reveal();
+      }
+    },
+    reveal() {
+      const S = A.S, x = S.cur;
+      S.busy = true; S.res[x.id] = 'bad';
+      A.scored(false);
+      physShow(x.id, 'target'); A.map.text(physLabelPoint(x), x.n);
+      const before = d3.zoomTransform(A.map.svg.node());
+      physZoom(x, 5);
+      A.later(() => {
+        physShow(x.id, '');
+        A.map.svg.transition().duration(600).call(A.map.zoom.transform, before);
+        A.later(() => this.next(), 450);
+      }, 2000);
+    },
+    skip() { const S = A.S; if (!S.busy && S.cur) this.reveal(); },
+    finish() { physReview(); },
+    summary: physSummary,
+  });
+
+  // --- Nommer : un repère est surligné, taper son nom ---
+  register('physName', {
+    items: physItems,
+    progressByScore: false,
+    start() {
+      const S = A.S;
+      S.seq = A.shuffle(S.items);
+      S.keys = new Map(S.items.map(x => [x.id, physKeys(x)]));
+      const m = A.newMap({ zone: S.cfg.zone, markers: false });
+      physLayer(m);
+      A.el.hint.hidden = false; A.el.skip.hidden = false;
+      A.el.mapPanel.hidden = false;
+      this.next();
+    },
+    redraw() { physLayer(A.map); if (A.S.cur) physZoom(A.S.cur); },
+    next() {
+      const S = A.S;
+      if (S.cur && S.physSt && S.physSt[S.cur.id]) physShow(S.cur.id, '');
+      S.cur = S.seq.find(x => !S.res[x.id]); S.hints = 0; S.busy = false;
+      if (!S.cur) return A.end('done');
+      A.map.clearFx();
+      physShow(S.cur.id, 'target');
+      physZoom(S.cur);
+      A.el.input.value = '';
+      A.el.input.placeholder = `Nom de ${KIND[S.cur.t].ce} ${KIND[S.cur.t].n}…`;
+      this.panel();
+    },
+    panel(reveal) {
+      const S = A.S, x = S.cur, n = S.seq.length, i = n - S.seq.filter(y => !S.res[y.id]).length + (reveal ? 0 : 1);
+      let hint = '';
+      if (S.hints) { let shown = 0; hint = [...x.n].map(ch => (/\p{L}|\d/u.test(ch) ? (shown++ < S.hints ? ch : '_') : ch)).join(''); }
+      A.el.mapPanel.innerHTML = `<div class="mp-head"><div><small>${KIND[x.t].n[0].toUpperCase() + KIND[x.t].n.slice(1)} ${Math.min(i, n)} / ${n}</small><strong>${reveal ? esc(x.n) : KIND[x.t].q + ' ' + KIND[x.t].n + ' ?'}</strong></div></div>${hint && !reveal ? `<div class="mp-hint">${esc(hint)}</div>` : ''}`;
+    },
+    input(force) {
+      const S = A.S;
+      if (S.busy || !S.cur) return;
+      const k = A.key(A.el.input.value);
+      if (k && S.keys.get(S.cur.id).includes(k)) return this.result(S.hints ? 'ok' : 'good');
+      if (force && k) A.shakeBox();
+    },
+    result(r) {
+      const S = A.S, x = S.cur;
+      S.busy = true; S.res[x.id] = r;
+      physShow(x.id, r === 'bad' ? 'missed' : r);
+      A.map.text(physLabelPoint(x), x.n);
+      A.el.input.value = '';
+      A.scored(r !== 'bad');
+      this.panel(true);
+      A.later(() => this.next(), r === 'bad' ? 1700 : 1000);
+    },
+    hint() {
+      const S = A.S;
+      if (!S.cur || S.busy) return;
+      const letters = [...S.cur.n].filter(ch => /\p{L}|\d/u.test(ch)).length;
+      if (S.hints < letters - 1) { S.hints++; this.panel(); }
+      A.el.input.focus();
+    },
+    skip() { if (!A.S.busy && A.S.cur) this.result('bad'); },
+    finish() { physReview(); A.el.mapPanel.hidden = true; },
+    summary: physSummary,
+  });
 })();

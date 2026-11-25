@@ -13,6 +13,7 @@ Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête
 | 05 **Pays voisins** | Un pays s’affiche : nommer tous ceux qui partagent une frontière terrestre avec lui (10, 25 ou tous les pays) |
 | 06 **À l’échelle** | Deux silhouettes à la même échelle, posées côte à côte : le 1er pays sert de repère fixe, on agrandit ou rétrécit librement le 2e (glisser, pincer, molette, flèches, boutons) puis on valide. Chaque manche est notée sur 100 (100 si exact, 50 si la surface est 2 fois trop grande ou trop petite, 0 au-delà de 4 fois) ; 5 ou 10 manches
 | 07 **Chemin** | Relier deux pays par une suite de voisins, en un minimum d’étapes (bouton Retour, trajet optimal révélé si on passe) |
+| 08 **Géographie physique** | 78 fleuves, 63 chaînes de montagnes et 26 déserts. **Situer** : clic sur le repère demandé (3 essais) · **Nommer** : un repère est surligné, taper son nom (indices, formes courtes acceptées : « Kalahari », « Rocheuses »…). Filtre par type de repère et par région |
 
 ### Atlas
 
@@ -38,6 +39,7 @@ Pour chaque partie : région (Monde, Europe, Afrique, Asie, Amérique du Nord, A
 - Drapeaux : `flag-icons` (SVG), avec des vignettes WebP pré-calculées pour les grilles.
 - Frontières terrestres : `world-countries`, restreintes aux 197 pays (frontière maritime Inde – Sri Lanka retirée).
 - Coordonnées des capitales : GeoNames (`scripts/capitales-coords.json`), Ciudad de la Paz ajoutée à la main.
+- Repères physiques : Natural Earth (domaine public). Les fleuves n’ont pas de noms français dans ces données : liste établie à la main (`scripts/physique-liste.mjs`), tronçons regroupés ; noms des montagnes et déserts revus. Régénération : `node scripts/physique.mjs` (télécharge les sources).
 - Silhouettes : pré-calculées au build à partir des tracés détaillés (`data/shapes.js`), territoire principal uniquement (sans Guyane, Hawaï, île de Pâques…). Noms et capitales en français : `scripts/pays.txt` (ex. Ciudad de la Paz, nouvelle capitale de la Guinée équatoriale depuis janvier 2026 ; Malabo reste accepté).
 
 ## Développement
@@ -53,7 +55,7 @@ Pour corriger un nom ou une capitale : modifier `scripts/pays.txt` puis `npm run
 ## Tests
 
 ```bash
-npm test        # 21 scénarios de bout en bout (ordinateur + mobile), serveur local lancé automatiquement
+npm test        # 25 scénarios de bout en bout (ordinateur + mobile), serveur local lancé automatiquement
 ```
 
 Les tests couvrent l’accueil et le thème, les trois jeux classiques, les quatre défis, la pause, l’atlas (recherche, fiche, filtre, pastilles), le mode hors ligne et l’affichage mobile. Ils sont relancés par GitHub à chaque envoi sur `main` (onglet **Actions**).
