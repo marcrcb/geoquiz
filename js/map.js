@@ -185,6 +185,7 @@
         el.classList.remove('found', 'good', 'ok', 'bad', 'missed', 'target', 'focus');
         if (st) el.classList.add(st);
       }
+      if (this.markers[id]) this.ringMarker(id);
     }
     flashWrong(id) {
       for (const el of [this.paths[id], this.markers[id]]) {
@@ -304,9 +305,15 @@
       const el = this.markers[id], size = this.markerSize(id);
       el.setAttribute('r', r);
       el.style.display = size && size * k > MARKER_HIDE_PX ? 'none' : '';
-      // contour déjà visible sous la pastille : simple cercle vide pour ne pas le cacher
-      el.classList.toggle('ring', !!size && size * k > 3);
+      this.ringMarker(id, k);
     }
+  };
+  /** Pays pas encore joué dont le contour apparaît sous la pastille : cercle vide pour ne pas le cacher.
+      Pays trouvé, manqué ou demandé : la pastille reste un disque plein, à la couleur de son état. */
+  MapView.prototype.ringMarker = function (id, k = this.k) {
+    const el = this.markers[id]; if (!el) return;
+    const size = this.markerSize(id);
+    el.classList.toggle('ring', !this.state[id] && !!size && size * k > 3);
   };
 
   /* ---------- Niveau de détail ----------

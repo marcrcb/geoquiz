@@ -85,3 +85,18 @@ test('pause : chrono figé, plateau masqué, progression conservée', async ({ p
   const after = await state(page, () => (performance.now() - Game.state.t0) / 1000);
   expect(after - before).toBeLessThan(0.5); // le temps de pause n'est pas compté
 });
+
+test('pastilles : un pays trouvé garde un disque plein en zoomant, un pays non joué devient un cercle vide', async ({ page }) => {
+  await home(page);
+  await startGame(page, 'map', { mode: 'type', zone: 'NA' });
+  await page.waitForFunction(() => typeof WORLD_HD !== 'undefined');
+  for (const n of ['grenade', 'sainte-lucie', 'barbade', 'dominique']) await type(page, n);
+  const look = id => page.evaluate(id => { const m = [...document.querySelectorAll('#mapSvg circle.marker')].find(e => e.__id === id); return m.style.display === 'none' ? 'masquée' : getComputedStyle(m).fill === 'none' ? 'vide' : 'plein'; }, id);
+  // zoom ×2 centré sur les Petites Antilles
+  const c = await page.evaluate(() => { const r = [...document.querySelectorAll('#mapSvg circle.marker')].find(e => e.__id === 'LCA').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  await page.mouse.move(c[0], c[1]);
+  for (let j = 0; j < 4; j++) { await page.mouse.wheel(0, -100); await page.waitForTimeout(60); }
+  await page.waitForTimeout(900);
+  for (const id of ['LCA', 'BRB', 'DMA']) expect(['plein', 'masquée']).toContain(await look(id));
+  expect(await look('KNA')).not.toBe('plein'); // Saint-Christophe, pas encore trouvé
+});
