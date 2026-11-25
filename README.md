@@ -2,13 +2,17 @@
 
 Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête pour GitHub Pages.
 
-## Les trois jeux
+## Les jeux
 
 | Jeu | Modes |
 | --- | --- |
-| 🗺️ **La carte du monde** | **Tout nommer** : tape les pays, ils s’illuminent sur la carte · **Localiser** : un pays est demandé, clique dessus (3 essais) |
-| 🚩 **Les drapeaux** | **Tous les drapeaux** (grille) · **Un par un** avec indices et « passer » |
-| 🏛️ **Les capitales** | **Liste complète** par continent · **Un par un** avec indices |
+| 01 **Carte du monde** | **Tout nommer** : tape les pays, ils apparaissent sur la carte · **Localiser** : un pays est demandé, clique dessus (3 essais) |
+| 02 **Drapeaux** | **Tous les drapeaux** (grille) · **Un par un** avec indices et « passer » |
+| 03 **Capitales** | **Liste complète** · **Un par un** — dans les deux sens (pays → capitale ou capitale → pays) · **Sur la carte** : clique l’emplacement de la capitale, réussi à moins de 300 km |
+| 04 **Silhouettes** | **Un par un** ou **Toutes les silhouettes** : reconnaître un pays à sa forme (164 pays ; micro-États et archipels trop dispersés exclus) |
+| 05 **Pays voisins** | Un pays s’affiche : nommer tous ceux qui partagent une frontière terrestre avec lui (10, 25 ou tous les pays) |
+| 06 **Le plus grand** | Duel entre deux pays — superficie, capitale la plus au nord ou la plus à l’est. La série s’arrête à la première erreur |
+| 07 **Chemin** | Relier deux pays par une suite de voisins, en un minimum d’étapes (bouton Retour, trajet optimal révélé si on passe) |
 
 Dans les grilles, une **case active** est surlignée : la réponse n’est acceptée que pour cette case, puis on passe automatiquement à la suivante. Clic sur une case pour la choisir, Tab / Maj+Tab ou « Passer » pour se déplacer ; les cases déjà trouvées sont sautées.
 
@@ -25,7 +29,10 @@ Pour chaque partie : région (Monde, Europe, Afrique, Asie, Amérique du Nord, A
 
 - **197 pays** : les 193 membres de l’ONU + Vatican, Palestine, Kosovo, Taïwan.
 - Carte : Natural Earth 1:50m (`world-atlas`), Somaliland fusionné avec la Somalie, Chypre du Nord avec Chypre.
-- Drapeaux : `flag-icons` (SVG), avec des vignettes WebP pré-calculées pour les grilles. Noms et capitales en français : `scripts/pays.txt` (ex. Ciudad de la Paz, nouvelle capitale de la Guinée équatoriale depuis janvier 2026 ; Malabo reste accepté).
+- Drapeaux : `flag-icons` (SVG), avec des vignettes WebP pré-calculées pour les grilles.
+- Frontières terrestres : `world-countries`, restreintes aux 197 pays (frontière maritime Inde – Sri Lanka retirée).
+- Coordonnées des capitales : GeoNames (`scripts/capitales-coords.json`), Ciudad de la Paz ajoutée à la main.
+- Silhouettes : pré-calculées au build (`data/shapes.js`), territoire principal uniquement (sans Guyane, Hawaï, île de Pâques…). Noms et capitales en français : `scripts/pays.txt` (ex. Ciudad de la Paz, nouvelle capitale de la Guinée équatoriale depuis janvier 2026 ; Malabo reste accepté).
 
 ## Développement
 

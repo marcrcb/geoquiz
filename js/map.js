@@ -33,8 +33,8 @@
   }
 
   class MapView {
-    constructor(host, { zone = 'ALL', inZone, onClick }) {
-      this.host = host; this.zone = zone; this.inZone = inZone; this.onClick = onClick;
+    constructor(host, { zone = 'ALL', inZone = () => true, onClick, onPoint, markers = true }) {
+      this.host = host; this.zone = zone; this.inZone = inZone; this.onClick = onClick; this.onPoint = onPoint; this.showMarkers = markers;
       this.byId = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
       this.state = {}; this.reveal = false; this.k = 1;
       this.tip = $('#tooltip'); this.tipId = null;
@@ -54,7 +54,7 @@
       const path = d3.geoPath(proj); this.path = path;
       const { feats, decor } = features();
 
-      const svg = d3.select(host).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('class', 'interactive');
+      const svg = d3.select(host).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('class', 'interactive' + (this.showMarkers ? '' : ' no-markers'));
       this.svg = svg;
       // Hachures pour les pays manqués
       svg.append('defs').append('pattern').attr('id', 'hatch').attr('patternUnits', 'userSpaceOnUse')
@@ -67,6 +67,7 @@
       g.append('path').attr('class', 'decor').attr('d', path(decor));
 
       this.feats = Object.fromEntries(feats.map(f => [f.id, f]));
+      this._mb = {};
       this.paths = {};
       const countries = g.append('g').attr('stroke-width', STROKE); this.countriesG = countries;
       for (const f of feats) {
@@ -104,11 +105,22 @@
           el.__id = c.id; this.markers[c.id] = el;
         }
       }
+      this.fxLines = g.append('g').attr('class', 'fx-lines').attr('stroke-width', 1.5);
       this.fx = g.append('g');
+      this.redrawFx();
 
       // Interactions : un seul écouteur délégué au lieu d'un par pays
       const idOf = e => e.target.__id;
-      svg.on('click', e => { const id = idOf(e); if (id && this.inZone(id) && this.onClick) this.onClick(id, e); })
+      svg.on('click', e => {
+        const id = idOf(e);
+        if (this.onPoint) {
+          // clic libre (n'importe où, même en mer) : coordonnées [lon, lat]
+          const ll = this.proj.invert(d3.pointer(e, g.node()));
+          if (ll && isFinite(ll[0]) && d3.geoContains({ type: 'Sphere' }, ll)) this.onPoint(ll, id);
+          return;
+        }
+        if (id && this.inZone(id) && this.onClick) this.onClick(id, e);
+      })
         .on('pointermove', e => this.hover(idOf(e), e))
         .on('pointerleave', () => this.hover(null));
 
@@ -124,6 +136,8 @@
             const r = this.r0 / Math.pow(k, .6);
             for (const id in this.markers) this.markers[id].setAttribute('r', r);
             this.fx.selectAll('text').attr('font-size', 14 / k).attr('stroke-width', 3 / k);
+            this.fx.selectAll('circle[data-r]').attr('r', function () { return this.dataset.r / k; }).attr('stroke-width', 1.5 / k);
+            this.fxLines.attr('stroke-width', 1.5 / k);
           }
         });
       svg.call(this.zoom).on('dblclick.zoom', null);
@@ -148,7 +162,7 @@
       this.state[id] = st;
       for (const el of [this.paths[id], this.markers[id]]) {
         if (!el) continue;
-        el.classList.remove('found', 'good', 'ok', 'bad', 'missed', 'target');
+        el.classList.remove('found', 'good', 'ok', 'bad', 'missed', 'target', 'focus');
         if (st) el.classList.add(st);
       }
     }
@@ -160,6 +174,66 @@
       }
     }
     highlight(id, on) { for (const el of [this.paths[id], this.markers[id]]) el && el.classList.toggle('hl', on); }
+
+    /** Cadre la vue sur un ensemble de pays (et éventuellement de points [lon, lat]). */
+    zoomToIds(ids, pts = [], maxK = 8) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      const add = ([a, b], [c, d]) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); };
+      // Les pays immenses (Russie, Canada…) ne dictent pas le cadrage s'il y a d'autres pays à montrer
+      const huge = id => { const b = this.mainBounds(id); return !!b && b[1][0] - b[0][0] > this.W * .3; };
+      if (ids.some(id => !huge(id))) ids = ids.filter(id => !huge(id));
+      for (const id of ids) {
+        const f = this.feats[id], c = this.centroids[id];
+        if (f && !this.markers[id]) {
+          const b = this.mainBounds(id);
+          // pays immenses ou à cheval sur la carte (Russie, États-Unis…) : on garde le cadre raisonnable
+          if (b[1][0] - b[0][0] < this.W * .8) add(...b); else if (c) add([c[0] - 60, c[1] - 60], [c[0] + 60, c[1] + 60]);
+        } else if (c) add([c[0] - 25, c[1] - 25], [c[0] + 25, c[1] + 25]);
+      }
+      for (const ll of pts) { const q = this.proj(ll); if (q) add([q[0] - 25, q[1] - 25], [q[0] + 25, q[1] + 25]); }
+      if (!isFinite(x0)) return this.resetZoom();
+      const avail = { w: this.W, h: this.H - 140 }; // place pour la saisie et le bandeau
+      const k = Math.max(1, Math.min(maxK, .85 / Math.max((x1 - x0) / avail.w, (y1 - y0) / avail.h)));
+      const t = d3.zoomIdentity.translate(this.W / 2, (this.H - 60) / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+      this.svg.transition().duration(650).call(this.zoom.transform, t);
+    }
+
+    /** Cadre du territoire principal (plus grand polygone) : ignore Guyane, Hawaï, île de Pâques… */
+    mainBounds(id) {
+      const f = this.feats[id]; if (!f) return null;
+      this._mb = this._mb || {};
+      if (this._mb[id]) return this._mb[id];
+      let best = null, area = -1;
+      const polys = f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [f.geometry.coordinates];
+      for (const c of polys) { const g = { type: 'Polygon', coordinates: c }, a = this.path.area(g); if (a > area) { area = a; best = g; } }
+      return (this._mb[id] = this.path.bounds(best));
+    }
+
+    /* ---------- Annotations : points, lignes, textes (taille constante à l'écran) ---------- */
+    redrawFx() {
+      const k = this.k || 1;
+      this.fx.selectAll('circle[data-r]').attr('r', function () { return this.dataset.r / k; }).attr('stroke-width', 1.5 / k);
+      this.fxLines.attr('stroke-width', 1.5 / k);
+    }
+    dot(ll, cls = '', r = 5) {
+      const q = this.proj(ll); if (!q) return null;
+      return this.fx.append('circle').attr('class', 'fx-dot ' + cls).attr('data-r', r).attr('cx', q[0]).attr('cy', q[1])
+        .attr('r', r / this.k).attr('stroke-width', 1.5 / this.k);
+    }
+    /** Ligne géodésique entre deux points [lon, lat] */
+    line(a, b, cls = '') { return this.fxLines.append('path').attr('class', 'fx-line ' + cls).attr('d', this.path({ type: 'LineString', coordinates: [a, b] })); }
+    text(ll, str, dy = -10) {
+      const q = this.proj(ll); if (!q) return null;
+      return this.fx.append('text').attr('class', 'float-label').attr('x', q[0]).attr('y', q[1] + dy / this.k)
+        .attr('font-size', 14 / this.k).attr('stroke-width', 3 / this.k).text(str);
+    }
+    /** Étiquette permanente au centre d'un pays */
+    tag(id, str) {
+      const c = this.centroids[id]; if (!c) return null;
+      return this.fx.append('text').attr('class', 'float-label tag').attr('x', c[0]).attr('y', c[1])
+        .attr('font-size', 14 / this.k).attr('stroke-width', 3 / this.k).text(str);
+    }
+    clearFx() { this.fx.selectAll('*').remove(); this.fxLines.selectAll('*').remove(); }
 
     /** Nom qui apparaît brièvement au-dessus du pays */
     label(id, text) {

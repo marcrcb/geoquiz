@@ -33,6 +33,24 @@ const countries = rows.map(([iso3, name, alts, cap, capAlts]) => {
   };
 }).sort((a, b) => a.n.localeCompare(b.n, 'fr'));
 
+// Voisins terrestres (world-countries) restreints aux 197 pays, rendus symétriques.
+// Frontières maritimes retirées : Inde – Sri Lanka.
+const MARITIME = new Set(['IND-LKA', 'LKA-IND']);
+const ids = new Set(countries.map(c => c.id));
+const fix3 = x => (x === 'UNK' ? 'XKX' : x);
+const nb = Object.fromEntries(countries.map(c => [c.id, new Set()]));
+for (const c of countries) for (const b of byIso3[c.id].borders.map(fix3)) {
+  if (!ids.has(b) || MARITIME.has(c.id + '-' + b)) continue;
+  nb[c.id].add(b); nb[b].add(c.id);
+}
+// Coordonnées des capitales [lat, lon] : GeoNames, Ciudad de la Paz corrigée (capitale depuis 2026)
+const capLL = JSON.parse(fs.readFileSync(out('scripts/capitales-coords.json')));
+for (const c of countries) {
+  c.nb = [...nb[c.id]].sort();
+  if (!capLL[c.id]) throw new Error('capitale sans coordonnées : ' + c.id);
+  c.capLL = capLL[c.id];
+}
+
 // ---------- 2. Carte ----------
 const world = JSON.parse(fs.readFileSync(path.join(NM, 'world-atlas/countries-50m.json')));
 const numToIso = Object.fromEntries(wc.filter(c => c.ccn3).map(c => [c.ccn3, c.cca3]));
@@ -71,6 +89,38 @@ console.log('Pays sans tracé (affichés en point) :', missing.join(', '));
 for (const c of countries) c.noShape = missing.includes(c.id) || undefined;
 
 fs.writeFileSync(out('data/world.js'), 'window.WORLD=' + JSON.stringify(t) + ';\n');
+
+// ---------- Silhouettes (pré-calculées : projection centrée sur chaque pays, sans déformation) ----------
+const d3 = await import('d3');
+const SW = 400, SH = 300;
+const shapes = {};
+/** Ne garde que le territoire principal : polygones à moins de 800 km (de proche en proche) du plus grand. */
+function mainland(f) {
+  if (f.geometry.type !== 'MultiPolygon') return f;
+  const polys = f.geometry.coordinates.map(c => ({ c, a: d3.geoArea({ type: 'Polygon', coordinates: c }), pts: c[0].filter((_, i) => i % 3 === 0) }));
+  polys.sort((x, y) => y.a - x.a);
+  const near = (p, q) => p.pts.some(a => q.pts.some(b => d3.geoDistance(a, b) * 6371 < 800));
+  const kept = [polys[0]];
+  let added = true;
+  while (added) {
+    added = false;
+    for (const p of polys) if (!kept.includes(p) && kept.some(k => near(p, k))) { kept.push(p); added = true; }
+  }
+  return { ...f, geometry: { type: 'MultiPolygon', coordinates: kept.map(p => p.c) } };
+}
+for (const f0 of topo.feature(t, t.objects.countries).features) {
+  const f = mainland(f0);
+  const [lon, lat] = d3.geoCentroid(f);
+  const proj = d3.geoAzimuthalEqualArea().rotate([-lon, -lat]).fitExtent([[14, 14], [SW - 14, SH - 14]], f);
+  const p = d3.geoPath(proj).digits(1);
+  const pts = (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates).flat(2).length;
+  // On écarte les formes illisibles : micro-États réduits à quelques points, archipels trop dispersés
+  const [[x0, y0], [x1, y1]] = p.bounds(f);
+  if (pts < 14 || p.area(f) < (x1 - x0) * (y1 - y0) * 0.05) continue;
+  shapes[f.id] = p(f);
+}
+fs.writeFileSync(out('data/shapes.js'), '// Généré par scripts/build.mjs\nwindow.SHAPES=' + JSON.stringify(shapes) + ';\n');
+console.log('Silhouettes :', Object.keys(shapes).length, 'pays ; écartés :', countries.filter(c => !shapes[c.id]).map(c => c.id).join(' '));
 fs.writeFileSync(out('data/countries.js'), '// Généré par scripts/build.mjs — modifiez scripts/pays.txt\nwindow.COUNTRIES=' +
   JSON.stringify(countries) + ';\n');
 

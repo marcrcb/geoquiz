@@ -29,29 +29,11 @@
     <div class="hero-map" id="heroMap" aria-hidden="true"></div>
   </section>
 
-  <section class="games" id="gameCards">
-    <button class="game-card" data-game="map">
-      <span class="gc-num">01</span>
-      <h3>Carte du monde</h3>
-      <p>Nomme chaque pays sur la carte, ou retrouve-le du premier clic.</p>
-      <span class="gc-best" data-best="map"></span>
-      <span class="gc-go">Jouer <span aria-hidden="true">→</span></span>
-    </button>
-    <button class="game-card" data-game="flags">
-      <span class="gc-num">02</span>
-      <h3>Drapeaux</h3>
-      <p>197 drapeaux à reconnaître : tape le nom du pays pour le révéler.</p>
-      <span class="gc-best" data-best="flags"></span>
-      <span class="gc-go">Jouer <span aria-hidden="true">→</span></span>
-    </button>
-    <button class="game-card" data-game="capitals">
-      <span class="gc-num">03</span>
-      <h3>Capitales</h3>
-      <p>De Canberra à Ciudad de la Paz : trouve la capitale de chaque pays.</p>
-      <span class="gc-best" data-best="capitals"></span>
-      <span class="gc-go">Jouer <span aria-hidden="true">→</span></span>
-    </button>
-  </section>
+  <!-- Cartes des jeux : générées par js/app.js -->
+  <h2 class="games-h">Les classiques</h2>
+  <section class="games" id="gameCards"></section>
+  <h2 class="games-h">Nouveaux défis</h2>
+  <section class="games games-4" id="gameCards2"></section>
 
   <footer class="foot">Carte : Natural Earth · Drapeaux : flag-icons · Données à jour 2026</footer>
 </main>
@@ -67,8 +49,10 @@
     <div class="modes" id="setupModes"></div>
     <h4>Région</h4>
     <div class="chips" id="setupZones"></div>
+    <div id="setupOptions"></div>
     <h4>Temps</h4>
     <div class="chips" id="setupTimer"></div>
+    <p class="setup-note" id="setupNote" hidden></p>
     <div class="setup-foot">
       <div class="setup-record" id="setupRecord"></div>
       <button class="btn primary" id="startBtn">Commencer</button>
@@ -112,6 +96,7 @@
         <button class="icon-btn" data-zoom="reset" aria-label="Recentrer">⤢</button>
       </div>
       <div class="map-legend" id="mapLegend"></div>
+      <div class="map-panel" id="mapPanel" hidden></div>
       <div class="tooltip" id="tooltip" hidden></div>
     </section>
 
@@ -121,9 +106,12 @@
     </section>
 
     <!-- Un par un -->
+    <!-- Jeux personnalisés (duel…) -->
+    <section class="custom-stage" id="customStage" hidden></section>
+
     <section class="solo-stage" id="soloStage" hidden>
       <div class="solo-card" id="soloCard">
-        <img id="soloFlag" alt="">
+        <div id="soloFlag"></div>
         <div class="solo-q" id="soloQ"></div>
         <div class="solo-hint" id="soloHint"></div>
         <div class="solo-reveal" id="soloReveal"></div>
@@ -134,7 +122,7 @@
   <!-- Bannière question (mode localiser) -->
   <div class="ask" id="ask" hidden>
     <img id="askFlag" alt="">
-    <div class="ask-txt"><small>Où se trouve</small><strong id="askName"></strong></div>
+    <div class="ask-txt"><small id="askLabel">Où se trouve</small><strong id="askName"></strong></div>
     <div class="ask-tries" id="askTries"></div>
     <button class="btn small" id="askSkip">Passer</button>
   </div>
@@ -145,6 +133,7 @@
       <input id="answer" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Tape un pays…" enterkeyhint="done">
       <div class="answer-actions">
         <button type="button" class="btn small" id="hintBtn" hidden>Indice</button>
+        <button type="button" class="btn small" id="backBtn" hidden>Retour</button>
         <button type="button" class="btn small" id="skipBtn" hidden>Passer</button>
       </div>
     </div>
@@ -184,9 +173,11 @@
 <script src="vendor/topojson-client.min.js"></script>
 <script src="data/countries.js"></script>
 <script src="data/world.js"></script>
+<script src="data/shapes.js"></script>
 <script src="js/util.js"></script>
 <script src="js/map.js"></script>
 <script src="js/game.js"></script>
+<script src="js/modes.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

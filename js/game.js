@@ -1,4 +1,6 @@
-/* Moteur des trois jeux : saisie libre (liste) ou question par question (série). */
+/* Moteur commun des jeux : chrono, pause, score, résultats, records.
+   - Jeux « standards » : saisie libre (liste), grille à case active, ou question par question.
+   - Jeux « personnalisés » (js/modes.js) : se branchent via Game.register() et l'API ci-dessous. */
 (function () {
   const { $, $$, key, shuffle, fmt, store } = U;
 
@@ -6,8 +8,10 @@
     ['ALL', 'Monde'], ['EU', 'Europe'], ['AF', 'Afrique'], ['AS', 'Asie'],
     ['NA', 'Amérique du Nord'], ['SA', 'Amérique du Sud'], ['OC', 'Océanie'],
   ];
-  const ZONE_NAME = Object.fromEntries(ZONES.map(z => [z[0], z[1]]));
+  const ZONE_NAME = Object.fromEntries(ZONES);
   const CONT_ORDER = ['EU', 'AF', 'AS', 'NA', 'SA', 'OC'];
+  const byId = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
+  const names = c => [c.n, ...c.alt];
 
   const GAMES = {
     map: {
@@ -16,45 +20,94 @@
         { id: 'type', name: 'Tout nommer', desc: 'Tape les noms des pays : chacun apparaît sur la carte.', sec: 5 },
         { id: 'click', name: 'Localiser', desc: 'Un pays est demandé : clique dessus. 3 essais par pays.', sec: 7 },
       ],
-      answers: c => [c.n, ...c.alt], placeholder: 'Tape un pays…',
+      answers: names, placeholder: 'Tape un pays…',
     },
     flags: {
       title: 'Drapeaux', num: '02', desc: 'Reconnais les drapeaux du monde entier.',
       modes: [
-        { id: 'grid', name: 'Tous les drapeaux', desc: 'Tous les drapeaux affichés : tape les pays dans l’ordre que tu veux.', sec: 4 },
+        { id: 'grid', name: 'Tous les drapeaux', desc: 'Tous les drapeaux affichés : remplis-les dans l’ordre ou clique sur une case.', sec: 4 },
         { id: 'solo', name: 'Un par un', desc: 'Un drapeau à la fois, avec indices et possibilité de passer.', sec: 6 },
       ],
-      answers: c => [c.n, ...c.alt], placeholder: 'Quel est ce pays ?',
+      answers: names, placeholder: 'Quel est ce pays ?',
     },
     capitals: {
-      title: 'Capitales', num: '03', desc: 'Trouve la capitale de chaque pays.',
+      title: 'Capitales', num: '03', desc: 'Trouve la capitale de chaque pays… ou l’inverse.',
       modes: [
-        { id: 'grid', name: 'Liste complète', desc: 'Tous les pays par continent : tape les capitales dans le désordre.', sec: 5 },
-        { id: 'solo', name: 'Un par un', desc: 'Un pays à la fois, avec indices et possibilité de passer.', sec: 7 },
+        { id: 'grid', name: 'Liste complète', desc: 'Tous les pays par continent : remplis-les dans l’ordre ou clique sur une case.', sec: 5 },
+        { id: 'solo', name: 'Un par un', desc: 'Une question à la fois, avec indices et possibilité de passer.', sec: 7 },
+        { id: 'locate', name: 'Sur la carte', desc: 'Une capitale est donnée : clique à son emplacement. Réussi à moins de 300 km.', sec: 8, custom: 'locate' },
       ],
-      answers: c => [c.cap, ...c.capAlt], placeholder: 'Tape une capitale…',
+      options: [{ id: 'dir', label: 'Sens', modes: ['grid', 'solo'], choices: [['fwd', 'Pays → capitale'], ['rev', 'Capitale → pays']] }],
+      answers: (c, cfg) => (cfg.dir === 'rev' ? names(c) : [c.cap, ...c.capAlt]),
+      placeholder: 'Tape une capitale…',
+    },
+    shapes: {
+      title: 'Silhouettes', num: '04', desc: 'Reconnais les pays à leur seule forme.',
+      modes: [
+        { id: 'solo', name: 'Un par un', desc: 'Une silhouette à la fois, avec indices et possibilité de passer.', sec: 7 },
+        { id: 'grid', name: 'Toutes les silhouettes', desc: 'Toutes les formes affichées : remplis-les dans l’ordre ou clique sur une case.', sec: 5 },
+      ],
+      items: zone => zoneItems(zone).filter(c => SHAPES[c.id]),
+      answers: names, placeholder: 'Quel est ce pays ?',
+      note: 'Les micro-États et archipels trop dispersés ne sont pas inclus.',
+    },
+    neighbors: {
+      title: 'Pays voisins', num: '05', desc: 'Un pays s’affiche : nomme tous ceux qui le touchent.',
+      modes: [{ id: 'round', name: 'Tous les voisins', desc: 'Nomme chaque pays qui partage une frontière terrestre avec celui qui est affiché.', custom: 'neighbors' }],
+      zones: ['ALL', 'EU', 'AF', 'AS', 'NA', 'SA'],
+      options: [{ id: 'rounds', label: 'Pays', choices: [['10', '10'], ['25', '25'], ['all', 'Tous']] }],
+      placeholder: 'Un pays voisin…',
+    },
+    bigger: {
+      title: 'Le plus grand', num: '06', desc: 'Deux pays : lequel l’emporte ? Une erreur et c’est fini.',
+      modes: [{ id: 'duel', name: 'Duel', desc: 'Choisis entre deux pays. La série continue tant que tu as raison.', custom: 'bigger' }],
+      options: [{ id: 'crit', label: 'Critère', choices: [['area', 'Superficie'], ['north', 'Capitale la plus au nord'], ['east', 'Capitale la plus à l’est']] }],
+      timers: ['free'],
+      bestText: v => `Record monde : ${v} d’affilée`,
+    },
+    path: {
+      title: 'Chemin', num: '07', desc: 'Relie deux pays en passant par des voisins.',
+      modes: [{ id: 'route', name: 'Relier deux pays', desc: 'Tape une suite de pays voisins pour aller du départ à l’arrivée, en un minimum d’étapes.', custom: 'path' }],
+      zones: ['ALL', 'EU', 'AF', 'AS', 'NA', 'SA'],
+      options: [{ id: 'rounds', label: 'Trajets', choices: [['5', '5'], ['10', '10']] }],
+      placeholder: 'Pays suivant…',
     },
   };
 
+  /** Modules des jeux personnalisés (enregistrés par js/modes.js) */
+  const CUSTOM = {};
+  const register = (name, impl) => (CUSTOM[name] = impl);
+
   const zoneItems = z => COUNTRIES.filter(c => z === 'ALL' || c.c === z);
-  const timeFor = (game, mode, zone) => {
-    const m = GAMES[game].modes.find(x => x.id === mode);
-    return Math.max(2, Math.ceil(zoneItems(zone).length * m.sec / 60)) * 60;
+  const modeOf = cfg => GAMES[cfg.game].modes.find(m => m.id === cfg.mode);
+  const optionsOf = cfg => (GAMES[cfg.game].options || []).filter(o => !o.modes || o.modes.includes(cfg.mode));
+  const itemsFor = cfg => {
+    const G = GAMES[cfg.game], M = modeOf(cfg);
+    if (M.custom) return CUSTOM[M.custom].items(cfg);
+    return G.items ? G.items(cfg.zone) : zoneItems(cfg.zone);
   };
-  const recKey = cfg => `rec:${cfg.game}:${cfg.mode}:${cfg.zone}:${cfg.timer}`;
+  /** Durée du chrono (s) : `sec` par question, arrondie à la minute */
+  const timeFor = cfg => {
+    const M = modeOf(cfg);
+    const per = M.custom && CUSTOM[M.custom].secPer ? CUSTOM[M.custom].secPer(cfg) : M.sec;
+    const n = M.custom && CUSTOM[M.custom].count ? CUSTOM[M.custom].count(cfg) : itemsFor(cfg).length;
+    return Math.max(2, Math.ceil(n * per / 60)) * 60;
+  };
+  const recKey = cfg => ['rec', cfg.game, cfg.mode, cfg.zone, cfg.timer, ...optionsOf(cfg).map(o => cfg[o.id])].join(':');
 
   let S = null; // état de la partie en cours
   let map = null;
 
   const el = {
     body: $('#gameBody'), mapStage: $('#mapStage'), gridStage: $('#gridStage'), grid: $('#grid'), soloStage: $('#soloStage'),
+    customStage: $('#customStage'), mapPanel: $('#mapPanel'),
     form: $('#answerForm'), input: $('#answer'), box: $('.answer-box'), toasts: $('#toasts'),
     score: $('#gScore'), total: $('#gTotal'), timer: $('#gTimer'), timerBox: $('#gTimerBox'), progress: $('#gProgress'),
     ask: $('#ask'), legend: $('#mapLegend'), review: $('#reviewBar'),
-    hint: $('#hintBtn'), skip: $('#skipBtn'), pauseBtn: $('#pauseBtn'), pauseOverlay: $('#pauseOverlay'),
+    hint: $('#hintBtn'), skip: $('#skipBtn'), back: $('#backBtn'), pauseBtn: $('#pauseBtn'), pauseOverlay: $('#pauseOverlay'),
   };
 
-  /** setTimeout lié à la partie en cours : ignoré si une autre partie a démarré entre-temps. */
+  /** setTimeout lié à la partie en cours : ignoré si une autre partie a démarré, différé pendant la pause. */
   function later(fn, ms) {
     const s = S;
     return setTimeout(() => {
@@ -68,50 +121,60 @@
   /* =================== Démarrage =================== */
   function start(cfg) {
     stop();
-    const G = GAMES[cfg.game];
-    const items = zoneItems(cfg.zone);
+    const G = GAMES[cfg.game], M = modeOf(cfg), C = M.custom ? CUSTOM[M.custom] : null;
+    const items = itemsFor(cfg);
     S = {
-      cfg, G, items, total: items.length, found: new Set(), res: {}, score: 0, done: 0,
-      streak: 0, bestStreak: 0, lastFind: 0, t0: performance.now(), limit: cfg.timer === 'timed' ? timeFor(cfg.game, cfg.mode, cfg.zone) : 0,
+      cfg, G, M, C, items, total: items.length, found: new Set(), res: {}, score: 0, done: 0,
+      streak: 0, bestStreak: 0, lastFind: 0, t0: performance.now(), limit: cfg.timer === 'timed' ? timeFor(cfg) : 0,
       ended: false, seq: null, cur: null, tries: 0, hints: 0, busy: false, pending: null, paused: false, pauseAt: 0, deferred: [],
     };
-    S.keys = new Map(items.map(c => [c.id, G.answers(c).map(key)]));
+    if (!C) S.keys = new Map(items.map(c => [c.id, G.answers(c, cfg).map(key)]));
     $('#gTitle').textContent = G.title;
-    $('#gSub').textContent = `${G.modes.find(m => m.id === cfg.mode).name} · ${ZONE_NAME[cfg.zone]}`;
-    el.total.textContent = '/' + S.total;
+    const opt = optionsOf(cfg).map(o => o.choices.find(ch => ch[0] === cfg[o.id])[1]);
+    $('#gSub').textContent = [M.name, ZONE_NAME[cfg.zone], ...opt].join(' · ');
     el.score.textContent = '0';
     setProgress(0);
-    el.review.hidden = true; el.ask.hidden = true;
-    el.mapStage.hidden = el.gridStage.hidden = el.soloStage.hidden = true;
+    el.review.hidden = true; el.ask.hidden = true; el.mapPanel.hidden = true; el.legend.hidden = false;
+    el.mapStage.hidden = el.gridStage.hidden = el.soloStage.hidden = el.customStage.hidden = true;
     el.form.hidden = cfg.mode === 'click';
-    el.input.value = ''; el.input.placeholder = G.placeholder;
+    el.input.value = ''; el.input.placeholder = G.placeholder || '';
     el.hint.hidden = cfg.mode !== 'solo';
     el.skip.hidden = cfg.mode !== 'solo' && cfg.mode !== 'grid';
+    el.back.hidden = true;
     el.toasts.innerHTML = '';
+    $('#askTries').hidden = false;
     $('#giveUpBtn').hidden = false;
     el.pauseBtn.hidden = false;
     showPaused(false);
     App.show('game');
+    map = null;
 
-    if (cfg.game === 'map') {
-      el.mapStage.hidden = false;
-      const zone = cfg.zone, contOf = Object.fromEntries(COUNTRIES.map(c => [c.id, c.c])), inZone = id => zone === 'ALL' || contOf[id] === zone;
-      map = new MapView($('#mapSvg'), { zone, inZone, onClick: onMapClick });
-      buildLegend();
-    } else map = null;
-
-    if (cfg.mode === 'grid') {
-      buildGrid(cfg.game === 'capitals' ? groupByCont(items) : shuffle(items));
-      select(S.order[0]);
+    if (C) {
+      C.start(API);
+    } else {
+      if (cfg.game === 'map') {
+        el.mapStage.hidden = false;
+        const zone = cfg.zone, inZone = id => zone === 'ALL' || byId[id].c === zone;
+        map = new MapView($('#mapSvg'), { zone, inZone, onClick: onMapClick });
+        buildLegend();
+      }
+      if (cfg.mode === 'grid') {
+        const grouped = cfg.game === 'capitals';
+        buildGrid(grouped ? groupByCont(items) : shuffle(items));
+        select(S.order[0]);
+      }
+      if (cfg.mode === 'click' || cfg.mode === 'solo') {
+        S.seq = shuffle(items);
+        if (cfg.mode === 'solo') el.soloStage.hidden = false;
+        next();
+      }
     }
-    if (cfg.mode === 'click' || cfg.mode === 'solo') {
-      S.seq = shuffle(items);
-      if (cfg.mode === 'solo') el.soloStage.hidden = false;
-      next();
-    }
+    setTotal(S.total);
     S.tick = setInterval(tick, 250); tick();
-    if (cfg.mode !== 'click') setTimeout(() => el.input.focus(), 350);
+    if (!el.form.hidden) setTimeout(() => el.input.focus(), 350);
   }
+
+  function setTotal(n) { S.total = n; el.total.textContent = n == null ? '' : '/' + n; }
 
   function stop() {
     if (S) { clearInterval(S.tick); clearTimeout(S.pending); S.ended = true; }
@@ -130,25 +193,25 @@
   }
 
   /* =================== Progression & retours visuels =================== */
-  function scored(ok) {
+  const isListMode = () => S.cfg.mode === 'type' || S.cfg.mode === 'grid' || (S.C && S.C.progressByScore);
+  function scored(ok, n = 1) {
     S.done++;
     if (ok) {
-      S.score++;
+      S.score += n;
       const now = performance.now();
-      S.streak = (S.cfg.mode === 'type' || S.cfg.mode === 'grid') ? (now - S.lastFind < 6000 ? S.streak + 1 : 1) : S.streak + 1;
+      S.streak = isListMode() && !S.C ? (now - S.lastFind < 6000 ? S.streak + 1 : 1) : S.streak + 1;
       S.lastFind = now;
       S.bestStreak = Math.max(S.bestStreak, S.streak);
       el.score.textContent = S.score;
     } else S.streak = 0;
-    const p = (S.cfg.mode === 'type' || S.cfg.mode === 'grid') ? S.score : S.done;
-    setProgress(p / S.total);
+    if (S.total) setProgress((isListMode() ? S.score : S.done) / S.total);
   }
-  function setProgress(f) { el.progress.style.transform = `scaleX(${f})`; }
+  function setProgress(f) { el.progress.style.transform = `scaleX(${Math.min(1, f)})`; }
 
-  function toast(c, txt, bad) {
+  function toast(c, txt) {
     const t = document.createElement('div');
     t.className = 'toast';
-    t.innerHTML = `<img src="flags/thumb/${c.a2}.webp" alt=""><span></span>`;
+    t.innerHTML = c ? `<img src="flags/thumb/${c.a2}.webp" alt=""><span></span>` : '<span></span>';
     t.querySelector('span').textContent = txt;
     el.toasts.prepend(t);
     while (el.toasts.children.length > 3) el.toasts.lastChild.remove();
@@ -156,19 +219,29 @@
   }
   function shakeBox() { el.box.classList.remove('ko'); void el.box.offsetWidth; el.box.classList.add('ko'); }
 
-  /* =================== Mode liste (carte « Tout nommer », grilles) =================== */
+  /* =================== Visuels des questions =================== */
+  const rev = () => S.cfg.game === 'capitals' && S.cfg.dir === 'rev';
+  const flagImg = (c, big) => `<img src="flags/${big ? '' : 'thumb/'}${c.a2}.${big ? 'svg' : 'webp'}" alt="" ${big ? '' : 'loading="lazy" decoding="async"'}>`;
+  const shapeSvg = c => `<svg class="shape" viewBox="0 0 400 300" aria-label="Silhouette à deviner"><path d="${SHAPES[c.id]}"/></svg>`;
+  /** Réponse principale attendue pour une question */
+  function mainAnswer(c) {
+    if (S.cfg.game === 'capitals') return rev() ? c.n : c.cap;
+    return c.n;
+  }
+
+  /* =================== Grilles =================== */
   function groupByCont(items) {
     return CONT_ORDER.flatMap(c => items.filter(i => i.c === c).sort((a, b) => a.n.localeCompare(b.n, 'fr')).map((x, i) => (i === 0 ? { ...x, sep: c } : x)));
   }
 
   function buildGrid(list) {
     el.gridStage.hidden = false; el.gridStage.scrollTop = 0;
-    const cap = S.cfg.game === 'capitals';
-    el.grid.className = 'grid' + (cap ? ' capitals' : '');
+    const cap = S.cfg.game === 'capitals', shapes = S.cfg.game === 'shapes';
+    el.grid.className = 'grid' + (cap ? ' capitals' : '') + (shapes ? ' shapes' : '');
     el.grid.innerHTML = '';
     S.tiles = {}; S.order = list.map(c => c.id); S.sel = null;
     const frag = document.createDocumentFragment();
-    list.forEach((c, i) => {
+    for (const c of list) {
       if (c.sep && S.cfg.zone === 'ALL') {
         const h = document.createElement('div'); h.className = 'grid-sep';
         h.textContent = ZONE_NAME[c.c]; frag.append(h);
@@ -176,19 +249,24 @@
       const t = document.createElement('div');
       t.className = 'tile' + (cap ? ' cap-tile' : '');
       t.dataset.id = c.id;
-      t.innerHTML = cap
-        ? `<div class="tile-inner"><img src="flags/thumb/${c.a2}.webp" alt="" loading="lazy" decoding="async"><div class="cap-info"><div class="cap-country"></div><div class="t-name">?</div></div></div>`
-        : `<div class="tile-inner"><img src="flags/thumb/${c.a2}.webp" alt="Drapeau à deviner" loading="lazy" decoding="async"><div class="t-name">?</div></div>`;
-      if (cap) t.querySelector('.cap-country').textContent = c.n;
+      if (cap) {
+        // Sens inverse : le drapeau trahirait la réponse, il n'apparaît qu'une fois trouvé
+        t.innerHTML = `<div class="tile-inner">${rev() ? '<div class="flag-ph"></div>' : flagImg(c)}<div class="cap-info"><div class="cap-country"></div><div class="t-name">?</div></div></div>`;
+        t.querySelector('.cap-country').textContent = rev() ? c.cap : c.n;
+      } else {
+        t.innerHTML = `<div class="tile-inner">${shapes ? shapeSvg(c) : flagImg(c)}<div class="t-name">?</div></div>`;
+      }
       S.tiles[c.id] = t; frag.append(t);
-    });
+    }
     el.grid.append(frag);
   }
 
   function tileSet(c, st) {
     const t = S.tiles && S.tiles[c.id]; if (!t) return;
     t.classList.remove('found', 'missed'); t.classList.add(st);
-    t.querySelector('.t-name').textContent = S.cfg.game === 'capitals' ? c.cap : c.n;
+    t.querySelector('.t-name').textContent = mainAnswer(c);
+    const ph = t.querySelector('.flag-ph');
+    if (ph) ph.outerHTML = flagImg(c);
   }
 
   function buildLegend() {
@@ -197,7 +275,7 @@
     updLegend();
   }
   function updLegend() {
-    if (!map) return;
+    if (!map || S.C) return;
     for (const row of $$('.lg', el.legend)) {
       const c = row.dataset.c, all = S.items.filter(i => i.c === c);
       const n = all.filter(i => S.res[i.id] === 'good' || S.res[i.id] === 'ok' || S.found.has(i.id)).length;
@@ -207,15 +285,14 @@
   }
 
   /* ---------- Grilles : une case active, remplie dans l'ordre ou choisie au clic ---------- */
-  const byId = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
-
   function select(id, scroll = true) {
     if (S.sel && S.tiles[S.sel]) S.tiles[S.sel].classList.remove('sel');
     S.sel = id || null;
     if (!id) return;
     const t = S.tiles[id];
     t.classList.add('sel');
-    el.input.placeholder = S.cfg.game === 'capitals' ? `Capitale : ${byId[id].n}` : 'Quel est ce pays ?';
+    const c = byId[id];
+    el.input.placeholder = S.cfg.game === 'capitals' ? (rev() ? `Pays de : ${c.cap}` : `Capitale : ${c.n}`) : 'Quel est ce pays ?';
     if (scroll) t.scrollIntoView({ block: 'nearest' });
   }
 
@@ -251,6 +328,7 @@
     el.input.focus({ preventScroll: true });
   }
 
+  /* ---------- Saisie libre (carte « Tout nommer ») ---------- */
   function listInput(force) {
     clearTimeout(S.pending);
     const k = key(el.input.value);
@@ -280,7 +358,7 @@
     if (S.found.size === S.total) later(() => end('done'), 500);
   }
 
-  /* =================== Mode série (localiser, un par un) =================== */
+  /* =================== Question par question (localiser, un par un) =================== */
   function next() {
     if (S.ended) return;
     S.cur = S.seq.find(c => !S.res[c.id]);
@@ -289,16 +367,25 @@
     const c = S.cur;
     if (S.cfg.mode === 'click') {
       el.ask.hidden = false;
-      $('#askFlag').src = `flags/thumb/${c.a2}.webp`;
+      $('#askFlag').src = `flags/thumb/${c.a2}.webp`; $('#askFlag').hidden = false;
+      $('#askLabel').textContent = 'Où se trouve';
       $('#askName').textContent = c.n;
       $('#askTries').innerHTML = '<i></i><i></i><i></i>';
     } else {
-      const img = $('#soloFlag');
-      img.className = ''; void img.offsetWidth;
-      img.src = `flags/${c.a2}.svg`; img.alt = S.cfg.game === 'flags' ? 'Drapeau à deviner' : `Drapeau : ${c.n}`;
-      img.className = 'in';
-      $('#soloQ').innerHTML = S.cfg.game === 'flags' ? '<small>Quel est ce pays ?</small>' : '<small>Capitale de</small>';
-      if (S.cfg.game === 'capitals') $('#soloQ').append(c.n);
+      const v = $('#soloFlag');
+      v.className = ''; void v.offsetWidth;
+      const g = S.cfg.game;
+      v.classList.toggle('is-shape', g === 'shapes');
+      v.classList.toggle('is-text', rev());
+      if (g === 'shapes') v.innerHTML = shapeSvg(c);
+      else if (rev()) { v.innerHTML = '<span class="solo-cap"></span>'; v.firstChild.textContent = c.cap; }
+      else v.innerHTML = flagImg(c, true);
+      v.classList.add('in');
+      const q = $('#soloQ');
+      if (g === 'capitals') {
+        q.innerHTML = rev() ? '<small>De quel pays est-ce la capitale ?</small>' : '<small>Capitale de</small>';
+        if (!rev()) q.append(c.n);
+      } else q.innerHTML = '<small>Quel est ce pays ?</small>';
       $('#soloHint').textContent = '';
       const r = $('#soloReveal'); r.textContent = ''; r.className = 'solo-reveal';
       el.input.value = '';
@@ -306,28 +393,26 @@
     }
   }
 
-  function mainAnswer(c) { return S.cfg.game === 'capitals' ? c.cap : c.n; }
-
   function soloInput(force) {
     if (S.busy || !S.cur) return;
     const k = key(el.input.value);
     if (k && S.keys.get(S.cur.id).includes(k)) return soloResult(S.hints ? 'ok' : 'good');
-    if (force && k) { shakeBox(); const img = $('#soloFlag'); img.className = ''; void img.offsetWidth; img.className = 'out-bad'; }
+    if (force && k) { shakeBox(); const v = $('#soloFlag'); v.classList.remove('out-bad'); void v.offsetWidth; v.classList.add('out-bad'); }
   }
 
   function soloResult(r) {
     const c = S.cur; S.busy = true; S.res[c.id] = r;
-    const img = $('#soloFlag'), rev = $('#soloReveal');
+    const v = $('#soloFlag'), rv = $('#soloReveal');
     if (r === 'bad') {
       scored(false);
-      rev.className = 'solo-reveal bad'; rev.textContent = mainAnswer(c);
-      img.className = ''; void img.offsetWidth; img.className = 'out-bad';
+      rv.className = 'solo-reveal bad'; rv.textContent = mainAnswer(c);
+      v.classList.remove('out-bad'); void v.offsetWidth; v.classList.add('out-bad');
       later(next, 1500);
     } else {
       scored(true);
-      rev.className = 'solo-reveal good'; rev.textContent = mainAnswer(c);
+      rv.className = 'solo-reveal good'; rv.textContent = mainAnswer(c);
       el.input.value = '';
-      later(() => { img.className = 'out-good'; }, 250);
+      later(() => v.classList.add('out-good'), 250);
       later(next, 700);
     }
   }
@@ -347,7 +432,9 @@
   }
 
   function onMapClick(id) {
-    if (!S || S.ended || S.cfg.mode !== 'click' || S.busy || !S.cur) return;
+    if (!S || S.ended || S.paused) return;
+    if (S.C) { if (S.C.mapClick) S.C.mapClick(id); return; }
+    if (S.cfg.mode !== 'click' || S.busy || !S.cur) return;
     const c = S.cur;
     if (S.res[id] && id !== c.id) return; // pays déjà joué : rien
     if (id === c.id) {
@@ -387,10 +474,12 @@
     const elapsed = Math.min(S.limit || Infinity, elapsedOf(S));
     S.elapsed = elapsed;
     el.input.blur();
-    // marquer les réponses manquées
-    for (const c of S.items) {
-      if (!S.found.has(c.id) && !S.res[c.id]) S.res[c.id] = 'missed';
-      if (S.res[c.id] === 'missed') { map && map.set(c.id, 'missed'); tileSet(c, 'missed'); }
+    if (S.C) { if (S.C.finish) S.C.finish(reason); }
+    else {
+      for (const c of S.items) {
+        if (!S.found.has(c.id) && !S.res[c.id]) S.res[c.id] = 'missed';
+        if (S.res[c.id] === 'missed') { map && map.set(c.id, 'missed'); tileSet(c, 'missed'); }
+      }
     }
     if (map) map.reveal = true;
     if (S.sel && S.tiles && S.tiles[S.sel]) S.tiles[S.sel].classList.remove('sel');
@@ -398,32 +487,35 @@
     $('#giveUpBtn').hidden = true;
     el.pauseBtn.hidden = true;
 
-    const pct = Math.round(100 * S.score / S.total);
+    // Records : meilleur score, puis meilleur temps à score égal
     const rk = recKey(S.cfg);
     const prev = store.get(rk, null);
     const isRec = S.score > 0 && (!prev || S.score > prev.score || (S.score === prev.score && elapsed < prev.time));
     if (isRec) store.set(rk, { score: S.score, total: S.total, time: Math.round(elapsed), date: Date.now() });
-    const gbest = store.get('best:' + S.cfg.game, 0);
-    if (S.cfg.zone === 'ALL' && pct > gbest) store.set('best:' + S.cfg.game, pct);
-    const best = isRec ? { score: S.score, time: elapsed } : prev;
+    const homeVal = S.total ? Math.round(100 * S.score / S.total) : S.score;
+    if (S.cfg.zone === 'ALL' && homeVal > store.get('best:' + S.cfg.game, 0)) store.set('best:' + S.cfg.game, homeVal);
+    const best = isRec ? { score: S.score, total: S.total } : prev;
 
-    setTimeout(() => showResults({ pct, elapsed, best, isRec, reason }), reason === 'done' ? 300 : 150);
+    setTimeout(() => showResults({ elapsed, best, isRec, reason }), reason === 'done' ? 300 : 150);
   }
 
-  function showResults({ pct, elapsed, best, isRec, reason }) {
-    const m = $('#results');
-    m.hidden = false;
-    $('#rPct').textContent = pct + ' %';
-    $('#rCount').textContent = `${S.score} / ${S.total}`;
+  function showResults({ elapsed, best, isRec, reason }) {
+    $('#results').hidden = false;
+    const pct = S.total ? Math.round(100 * S.score / S.total) : null;
+    const sum = S.C && S.C.summary ? S.C.summary(elapsed) : {};
+    $('#rPct').textContent = sum.big ?? pct + ' %';
+    $('#rCount').textContent = sum.small ?? `${S.score} / ${S.total}`;
+    const frac = sum.frac ?? (pct != null ? pct / 100 : 0);
     const bar = $('#rBar'); bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)'; void bar.offsetWidth;
-    bar.style.transition = ''; bar.style.transform = `scaleX(${pct / 100})`;
+    bar.style.transition = ''; bar.style.transform = `scaleX(${frac})`;
+    $('#rBar').parentElement.hidden = sum.frac === null;
     const titles = [[100, 'Sans faute.'], [90, 'Excellent.'], [75, 'Très bien.'], [50, 'Bien.'], [25, 'Encore un effort.'], [0, 'À réviser.']];
-    $('#rTitle').textContent = titles.find(([p]) => pct >= p)[1];
-    $('#rMsg').textContent = reason === 'time' ? 'Temps écoulé' : reason === 'done' ? 'Tout trouvé' : 'Partie terminée';
-    $('#rTime').textContent = fmt(elapsed);
-    $('#rStreak').textContent = S.bestStreak;
-    $('#rBest').textContent = best ? `${best.score}/${S.total}` : '—';
+    $('#rTitle').textContent = sum.title ?? titles.find(([p]) => pct >= p)[1];
+    $('#rMsg').textContent = sum.msg ?? (reason === 'time' ? 'Temps écoulé' : reason === 'done' ? 'Tout trouvé' : 'Partie terminée');
+    const stats = sum.stats ?? [['Temps', fmt(elapsed)], ['Meilleure série', S.bestStreak], ['Record', best ? `${best.score}/${S.total}` : '—']];
+    $$('.r-grid div').forEach((d, i) => { d.querySelector('small').textContent = stats[i][0]; d.querySelector('b').textContent = stats[i][1]; });
     $('#rBadge').hidden = !isRec;
+    $('#rReview').hidden = !!(S.C && S.C.noReview);
   }
 
   function review() {
@@ -438,25 +530,26 @@
         tileSet(c, r === 'good' || r === 'ok' ? 'found' : 'missed');
       }
     }
+    if (S.C && S.C.review) S.C.review();
   }
 
   /* =================== Événements =================== */
-  el.input.addEventListener('input', () => {
-    if (!S || S.ended) return;
-    if (S.cfg.mode === 'solo') soloInput(false); else if (S.cfg.mode === 'grid') gridInput(false); else listInput(false);
-  });
-  el.form.addEventListener('submit', e => {
-    e.preventDefault();
-    if (!S || S.ended) return;
-    if (S.cfg.mode === 'solo') soloInput(true); else if (S.cfg.mode === 'grid') gridInput(true); else listInput(true);
-  });
-  el.hint.addEventListener('click', hint);
+  function routeInput(force) {
+    if (!S || S.ended || S.paused) return;
+    if (S.C) { if (S.C.input) S.C.input(force); return; }
+    if (S.cfg.mode === 'solo') soloInput(force); else if (S.cfg.mode === 'grid') gridInput(force); else listInput(force);
+  }
+  el.input.addEventListener('input', () => routeInput(false));
+  el.form.addEventListener('submit', e => { e.preventDefault(); routeInput(true); });
+  el.hint.addEventListener('click', () => { if (S && S.C && S.C.hint) S.C.hint(); else hint(); });
   el.skip.addEventListener('click', () => {
-    if (!S || S.ended) return;
+    if (!S || S.ended || S.paused) return;
+    if (S.C) { if (S.C.skip) S.C.skip(); return; }
     if (S.cfg.mode === 'grid') return moveSel(1);
     if (!S.busy) soloResult('bad');
     el.input.focus();
   });
+  el.back.addEventListener('click', () => { if (S && !S.ended && !S.paused && S.C && S.C.back) S.C.back(); });
   // Clic sur une case : elle devient la case active
   el.grid.addEventListener('click', e => {
     const t = e.target.closest('.tile');
@@ -469,20 +562,25 @@
   el.input.addEventListener('keydown', e => {
     if (e.key === 'Tab' && S && S.cfg.mode === 'grid' && !S.ended) { e.preventDefault(); moveSel(e.shiftKey ? -1 : 1); }
   });
-  $('#askSkip').addEventListener('click', () => { if (S && !S.ended && !S.busy && S.cur) revealTarget(); });
+  $('#askSkip').addEventListener('click', () => {
+    if (!S || S.ended || S.paused) return;
+    if (S.C) { if (S.C.skip) S.C.skip(); return; }
+    if (!S.busy && S.cur) revealTarget();
+  });
   $('#giveUpBtn').addEventListener('click', () => end('giveup'));
 
   /* =================== Pause =================== */
+  const scoreText = () => (S.total == null ? String(S.score) : `${S.score} / ${S.total}`);
   function pause() {
     if (!S || S.ended || S.paused) return;
     tick(); // fige l'affichage sur la valeur exacte
     if (S.ended) return;
     S.paused = true; S.pauseAt = performance.now();
     // une validation « Niger → Nigeria » en attente est rejouée à la reprise
-    if (S.pending) { clearTimeout(S.pending); S.pending = null; S.deferred.push(() => listInput(false)); }
+    if (S.pending) { clearTimeout(S.pending); S.pending = null; S.deferred.push(() => routeInput(false)); }
     el.input.blur();
     $('#pauseTime').textContent = S.limit ? `${fmt(Math.ceil(S.limit - elapsedOf(S)))} restantes` : `${fmt(elapsedOf(S))} écoulées`;
-    $('#pauseScore').textContent = `${S.score} / ${S.total}`;
+    $('#pauseScore').textContent = scoreText();
     showPaused(true);
   }
   function resume() {
@@ -494,7 +592,7 @@
     const q = S.deferred; S.deferred = [];
     q.forEach(fn => { if (!S.ended) fn(); });
     tick();
-    if (!S.ended && S.cfg.mode !== 'click') el.input.focus({ preventScroll: true });
+    if (!S.ended && !el.form.hidden) el.input.focus({ preventScroll: true });
   }
   function showPaused(on) {
     $('#game').classList.toggle('paused', on);
@@ -512,6 +610,7 @@
     if (!S || S.ended || !$('#game').classList.contains('active')) return;
     if (S.paused && (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); resume(); }
     else if (!S.paused && e.key === 'Escape' && !el.input.value) { e.preventDefault(); pause(); }
+    else if (!S.paused && S.C && S.C.key) S.C.key(e);
   });
   $$('[data-zoom]').forEach(b => b.addEventListener('click', () => {
     if (!map) return;
@@ -526,7 +625,10 @@
     rt = setTimeout(() => {
       if (!map || el.mapStage.hidden) return;
       const w = el.mapStage.clientWidth;
-      if (Math.abs(w - map.W) > 40) { const r = map.reveal; map.build(); map.reveal = r; }
+      if (Math.abs(w - map.W) > 40) {
+        const r = map.reveal; map.build(); map.reveal = r;
+        if (S && S.C && S.C.redraw) S.C.redraw();
+      }
     }, 250);
   });
 
@@ -538,9 +640,28 @@
   $('#rMenu').addEventListener('click', menu);
   $('#reviewMenu').addEventListener('click', menu);
   $('#quitBtn').addEventListener('click', () => {
-    if (S && !S.ended && S.done > 0 && !confirm('Quitter la partie en cours ?')) return;
+    if (S && !S.ended && (S.done > 0 || S.score > 0) && !confirm('Quitter la partie en cours ?')) return;
     menu();
   });
 
-  window.Game = { GAMES, ZONES, zoneItems, timeFor, recKey, start, get state() { return S; } };
+  /* =================== API pour les jeux personnalisés =================== */
+  const API = {
+    get S() { return S; }, get map() { return map; }, el, byId, key, shuffle, fmt,
+    later, scored, setTotal, setProgress, toast, shakeBox, end,
+    /** Crée la carte du jeu (plein écran, sans légende) */
+    newMap(opts = {}) {
+      el.mapStage.hidden = false; el.legend.hidden = true;
+      map = new MapView($('#mapSvg'), { zone: opts.zone || 'ALL', inZone: opts.inZone, onClick: onMapClick, onPoint: opts.onPoint, markers: opts.markers !== false });
+      return map;
+    },
+    /** Bandeau de question en bas (mode carte) */
+    ask(c, label, name, { flag = true, tries = false } = {}) {
+      el.ask.hidden = false;
+      $('#askFlag').hidden = !flag; if (flag) $('#askFlag').src = `flags/thumb/${c.a2}.webp`;
+      $('#askLabel').textContent = label; $('#askName').textContent = name;
+      $('#askTries').hidden = !tries;
+    },
+  };
+
+  window.Game = { GAMES, ZONES, ZONE_NAME, zoneItems, itemsFor, optionsOf, timeFor, recKey, start, register, API, get state() { return S; } };
 })();
