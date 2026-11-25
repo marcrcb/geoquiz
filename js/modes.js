@@ -184,85 +184,6 @@
   });
 
   /* =====================================================================
-     Le plus grand : duel entre deux pays, série jusqu'à la première erreur
-     ===================================================================== */
-  const CRIT = {
-    area: { q: 'Lequel est le plus grand ?', v: c => c.area, f: c => `${nf.format(c.area)} km²`, sub: () => '' },
-    north: { q: 'Quelle capitale est la plus au nord ?', v: c => c.capLL[0], f: c => `${nf.format(Math.abs(c.capLL[0]))}° ${c.capLL[0] >= 0 ? 'N' : 'S'}`, sub: c => c.cap },
-    east: { q: 'Quelle capitale est la plus à l’est ?', v: c => c.capLL[1], f: c => `${nf.format(Math.abs(c.capLL[1]))}° ${c.capLL[1] >= 0 ? 'E' : 'O'}`, sub: c => c.cap },
-  };
-  register('bigger', {
-    items: cfg => zoneItems(cfg.zone),
-    noReview: true,
-    start() {
-      const S = A.S;
-      S.crit = CRIT[S.cfg.crit] || CRIT.area;
-      A.setTotal(null);
-      A.el.form.hidden = true;
-      S.deck = []; S.pair = [this.draw(), null]; S.pair[1] = this.draw(S.pair[0]);
-      const st = A.el.customStage; st.hidden = false;
-      st.innerHTML = `<div class="duel"><p class="duel-q"></p><div class="duel-cards">
-        <button class="duel-card" data-side="0"></button><span class="duel-or">ou</span><button class="duel-card" data-side="1"></button></div>
-        <p class="duel-help">Clique sur ta réponse — ou flèches ← →</p></div>`;
-      st.querySelector('.duel-q').textContent = S.crit.q;
-      st.querySelector('.duel-cards').onclick = e => { const b = e.target.closest('[data-side]'); if (b) this.choose(+b.dataset.side); };
-      this.render();
-    },
-    /** Pioche un pays (paquet mélangé), différent de `other` et de valeur distincte */
-    draw(other) {
-      const S = A.S;
-      for (let guard = 0; guard < 500; guard++) {
-        if (!S.deck.length) S.deck = A.shuffle(S.items);
-        const c = S.deck.pop();
-        if (other && (c.id === other.id || S.crit.v(c) === S.crit.v(other))) continue;
-        return c;
-      }
-    },
-    render() {
-      const S = A.S;
-      A.el.customStage.querySelectorAll('.duel-card').forEach((b, i) => {
-        const c = S.pair[i];
-        b.className = 'duel-card in';
-        b.disabled = false;
-        b.innerHTML = `<img src="flags/${c.a2}.svg" alt=""><strong></strong><small></small><span class="duel-val">?</span>`;
-        b.querySelector('strong').textContent = c.n;
-        b.querySelector('small').textContent = S.crit.sub(c);
-      });
-      S.busy = false;
-    },
-    key(e) {
-      if (e.key === 'ArrowLeft' || e.key === '1') { e.preventDefault(); this.choose(0); }
-      if (e.key === 'ArrowRight' || e.key === '2') { e.preventDefault(); this.choose(1); }
-    },
-    choose(side) {
-      const S = A.S;
-      if (!S || S.ended || S.paused || S.busy) return;
-      S.busy = true;
-      const [a, b] = S.pair, va = S.crit.v(a), vb = S.crit.v(b);
-      const win = va > vb ? 0 : 1, ok = side === win;
-      A.el.customStage.querySelectorAll('.duel-card').forEach((btn, i) => {
-        btn.disabled = true;
-        btn.querySelector('.duel-val').textContent = S.crit.f(S.pair[i]);
-        btn.classList.add(i === win ? 'win' : 'lose');
-        if (i === side) btn.classList.add('picked');
-      });
-      A.scored(ok);
-      if (!ok) { S.lastPair = S.pair; return A.later(() => A.end('done'), 1500); }
-      // Le gagnant reste, un nouvel adversaire arrive
-      A.later(() => { const keep = S.pair[win]; S.pair = [keep, this.draw(keep)]; this.render(); }, 1100);
-    },
-    summary() {
-      const S = A.S, b = best(), n = S.score;
-      const titles = [[30, 'Phénoménal.'], [20, 'Impressionnant.'], [10, 'Très bien.'], [5, 'Bien.'], [0, 'Encore un effort.']];
-      return {
-        big: String(n), small: n > 1 ? 'bonnes réponses d’affilée' : 'bonne réponse', frac: null,
-        title: titles.find(([p]) => n >= p)[1], msg: 'Série terminée',
-        stats: [['Temps', fmt(S.elapsed)], ['Critère', { area: 'Superficie', north: 'Nord', east: 'Est' }[S.cfg.crit] || 'Superficie'], ['Record', b ? String(b.score) : '—']],
-      };
-    },
-  });
-
-  /* =====================================================================
      Chemin : relier deux pays par une suite de voisins
      ===================================================================== */
   function graphFor(zone) {
@@ -424,41 +345,67 @@
   const areaOf = id => (AREA[id] ??= pathArea(SHAPES[id]) * SHAPE_KM[id] ** 2);
   const times = r => `${nf.format(+(r >= 10 ? r.toFixed(0) : r.toFixed(1)))} ×`;
 
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const VB_W = 800, VB_H = 420;        // proportions de la zone de jeu
+  const V_MIN = -6, V_MAX = 6;          // ×1/400 à ×400 en longueur : pratiquement illimité
+
   register('scale', {
     items: cfg => zoneItems(cfg.zone).filter(c => SHAPES[c.id]),
-    count: cfg => +cfg.rounds || 10,
+    count: cfg => +cfg.rounds || 5,
     secPer: () => 30,
     noReview: true,
     start() {
-      const S = A.S, n = +S.cfg.rounds || 10;
+      const S = A.S, n = +S.cfg.rounds || 5;
       S.pairs = this.pick(n);
       A.setTotal(S.pairs.length * 100);
       S.errs = []; S.ri = -1;
       A.el.form.hidden = true;
       const st = A.el.customStage; st.hidden = false;
       st.innerHTML = `<div class="scale">
-        <p class="scale-q">Donne au 2<sup>e</sup> pays sa vraie taille</p>
-        <div class="scale-names"><div><b class="n1"></b><small>fixe</small></div><div><b class="n2"></b><small>à ajuster</small></div></div>
-        <svg class="scale-svg" viewBox="0 0 800 380" aria-label="Comparaison des deux pays">
-          <line x1="400" y1="20" x2="400" y2="360" class="scale-sep"/>
+        <p class="scale-q">Donne sa vraie taille à : <b class="n2"></b></p>
+        <p class="scale-sub">Repère fixe : <b class="n1"></b></p>
+        <svg class="scale-svg" viewBox="0 0 ${VB_W} ${VB_H}" aria-label="Comparaison des deux pays">
+          <line class="scale-ground"/>
           <g class="s1"><path/></g><g class="s2"><path/></g><g class="sg"><path/></g>
+          <text class="scale-lbl l1"></text><text class="scale-lbl l2"></text>
         </svg>
         <div class="scale-ctrl">
           <button class="icon-btn" data-step="-1" aria-label="Réduire">−</button>
-          <input type="range" min="0" max="1000" step="1" aria-label="Taille du second pays">
           <button class="icon-btn" data-step="1" aria-label="Agrandir">+</button>
           <button class="btn primary scale-go">Valider</button>
         </div>
         <p class="scale-res" aria-live="polite"></p>
-        <p class="duel-help">Curseur, molette ou flèches ← → · Entrée pour valider</p>
+        <p class="scale-help">Glisse vers le haut ou le bas (ou pince) pour redimensionner · molette · flèches · Entrée pour valider</p>
       </div>`;
       const q = sel => st.querySelector(sel);
-      S.ui = { svg: q('.scale-svg'), g1: q('.s1'), g2: q('.s2'), gg: q('.sg'), range: q('input'), go: q('.scale-go'), res: q('.scale-res'), n1: q('.n1'), n2: q('.n2') };
-      S.ui.range.addEventListener('input', () => this.setT(+S.ui.range.value));
-      st.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => this.nudge(+b.dataset.step * 0.04)));
-      S.ui.svg.addEventListener('wheel', e => { e.preventDefault(); this.nudge(-Math.sign(e.deltaY) * 0.035); }, { passive: false });
+      S.ui = { svg: q('.scale-svg'), g1: q('.s1'), g2: q('.s2'), gg: q('.sg'), ground: q('.scale-ground'), l1: q('.l1'), l2: q('.l2'),
+        go: q('.scale-go'), res: q('.scale-res'), n1: q('.n1'), n2: q('.n2') };
+      // Boutons − / + : un clic = un cran, un appui long = en continu
+      st.querySelectorAll('[data-step]').forEach(b => {
+        let rep = null;
+        const stop = () => { clearInterval(rep); rep = null; };
+        b.addEventListener('pointerdown', e => { e.preventDefault(); this.nudge(+b.dataset.step * 0.06); rep = setInterval(() => this.nudge(+b.dataset.step * 0.03), 60); });
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => b.addEventListener(t, stop));
+      });
+      this.gestures(S.ui.svg);
       S.ui.go.addEventListener('click', () => (S.revealed ? this.advance() : this.validate()));
       this.round(0);
+    },
+    /** Glisser (haut = agrandir), pincer, molette : aucune limite de taille */
+    gestures(svg) {
+      const pts = new Map();
+      let last = null;
+      const spread = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+      svg.addEventListener('pointerdown', e => { try { svg.setPointerCapture(e.pointerId); } catch { /* pointeur sans capture possible */ } pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = pts.size === 2 ? spread() : e.clientY; });
+      svg.addEventListener('pointermove', e => {
+        if (!pts.has(e.pointerId)) return;
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2) { const d = spread(); if (last) this.nudge(Math.log(d / last)); last = d; }
+        else if (pts.size === 1) { this.nudge((last - e.clientY) * 0.006); last = e.clientY; }
+      });
+      const up = e => { pts.delete(e.pointerId); last = pts.size === 1 ? [...pts.values()][0].y : null; };
+      ['pointerup', 'pointercancel'].forEach(t => svg.addEventListener(t, up));
+      svg.addEventListener('wheel', e => { e.preventDefault(); this.nudge(-e.deltaY * 0.0015); }, { passive: false });
     },
     /** Paires de pays dont le rapport de surface reste lisible (entre 1,3 et 20) */
     pick(n) {
@@ -474,42 +421,58 @@
     },
     round(i) {
       const S = A.S, [c1, c2] = S.pairs[i], u = S.ui;
-      S.ri = i; S.revealed = false; S.busy = false;
+      S.ri = i; S.revealed = false;
       u.n1.textContent = c1.n; u.n2.textContent = c2.n;
+      u.l1.textContent = c1.n; u.l2.textContent = c2.n;
       u.g1.firstChild.setAttribute('d', SHAPES[c1.id]);
       u.g2.firstChild.setAttribute('d', SHAPES[c2.id]);
       u.gg.firstChild.setAttribute('d', SHAPES[c2.id]);
       u.gg.style.display = 'none';
       u.g2.classList.remove('done');
-      // Échelle commune (km par pixel d'écran) : le plus grand des deux occupe la moitié de son cadre,
-      // pour laisser de la marge quand on agrandit le second pays
-      const s1 = SHAPE_KM[c1.id], s2 = SHAPE_KM[c2.id], m = Math.max(s1, s2) / 0.5;
-      S.k1 = s1 / m; S.k2 = s2 / m;
-      u.g1.setAttribute('transform', this.tf(200, S.k1));
-      u.gg.setAttribute('transform', this.tf(600, S.k2));
-      // Plage du curseur décalée au hasard : la bonne réponse n'est jamais au milieu
-      // …et jamais au-delà de sa moitié du cadre (taille affichée ≤ 1)
-      S.lo = -Math.log(3) - Math.random() * 0.6;
-      S.hi = Math.max(Math.log(1.8), Math.log((0.95 + Math.random() * 0.05) / S.k2));
-      let v; do { v = S.lo + Math.random() * (S.hi - S.lo); } while (Math.abs(v) < 0.3);
-      this.setV(v);
+      // Contours réels des formes (pour poser les pays sur une même ligne de sol)
+      S.b1 = u.g1.firstChild.getBBox(); S.b2 = u.g2.firstChild.getBBox();
+      // Échelle réelle du 2e pays par rapport au 1er (km par pixel de chaque silhouette)
+      S.kTrue = SHAPE_KM[c2.id] / SHAPE_KM[c1.id];
+      // Taille de départ fausse : entre 1,5 et 3,5 fois trop grand ou trop petit (en longueur)
+      S.v = (Math.random() < .5 ? -1 : 1) * (0.4 + Math.random() * 0.85);
+      this.layout();
       u.res.textContent = ''; u.res.className = 'scale-res';
-      u.go.textContent = 'Valider'; u.range.disabled = false;
+      u.go.textContent = 'Valider';
       A.setProgress(i / S.pairs.length);
     },
-    tf: (cx, k) => `translate(${cx} 190) scale(${k}) translate(-200 -150)`,
-    setV(v) {
-      const S = A.S;
-      S.v = Math.max(S.lo, Math.min(S.hi, v));
-      S.ui.range.value = Math.round(1000 * (S.v - S.lo) / (S.hi - S.lo));
-      S.ui.g2.setAttribute('transform', this.tf(600, S.k2 * Math.exp(S.v)));
+    /** Place les deux pays côte à côte sur le sol et cadre la vue pour tout montrer */
+    layout() {
+      const S = A.S, u = S.ui, b1 = S.b1, b2 = S.b2;
+      const kU = S.kTrue * Math.exp(S.v), kG = S.revealed ? S.kTrue : 0;
+      const gap = 0.12 * Math.max(b1.width, b1.height, b2.width * kU, b2.height * kU);
+      const x2 = b1.width + gap;
+      const place = (g, b, k, x) => g.setAttribute('transform', `translate(${x - b.x * k} ${-(b.y + b.height) * k}) scale(${k})`);
+      place(u.g1, b1, 1, 0);
+      place(u.g2, b2, kU, x2);
+      if (kG) place(u.gg, b2, kG, x2);
+      const w2 = b2.width * Math.max(kU, kG), h = Math.max(b1.height, b2.height * Math.max(kU, kG));
+      const W = x2 + w2;
+      // Vue : tout tient dans le cadre, avec une marge et la place des noms sous le sol
+      const sc = Math.max(W / (VB_W * 0.86), h / (VB_H * 0.72));
+      const cx = W / 2, top = -h - VB_H * sc * 0.1;
+      u.svg.setAttribute('viewBox', `${cx - VB_W * sc / 2} ${top} ${VB_W * sc} ${VB_H * sc}`);
+      const fs = 15 * sc;
+      u.ground.setAttribute('x1', cx - VB_W * sc / 2); u.ground.setAttribute('x2', cx + VB_W * sc / 2);
+      u.ground.setAttribute('y1', 0); u.ground.setAttribute('y2', 0); u.ground.setAttribute('stroke-width', 1 * sc);
+      for (const [t, x] of [[u.l1, b1.width / 2], [u.l2, x2 + b2.width * kU / 2]]) {
+        t.setAttribute('x', x); t.setAttribute('y', fs * 1.6); t.setAttribute('font-size', fs);
+      }
     },
-    setT(t) { const S = A.S; if (!S.revealed && !S.paused) this.setV(S.lo + (t / 1000) * (S.hi - S.lo)); },
-    nudge(dv) { const S = A.S; if (!S.ended && !S.revealed && !S.paused) this.setV(S.v + dv); },
+    nudge(dv) {
+      const S = A.S;
+      if (!S || S.ended || S.revealed || S.paused || S.C !== this) return;
+      S.v = Math.max(V_MIN, Math.min(V_MAX, S.v + dv));
+      this.layout();
+    },
     key(e) {
       const S = A.S;
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); this.nudge(-0.03); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); this.nudge(0.03); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); this.nudge(-0.04); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); this.nudge(0.04); }
       else if (e.key === 'Enter') { e.preventDefault(); S.revealed ? this.advance() : this.validate(); }
     },
     validate() {
@@ -518,17 +481,19 @@
       S.revealed = true;
       const [c1, c2] = S.pairs[S.ri], u = S.ui;
       const guess = Math.exp(2 * S.v); // rapport de surface : réponse / réalité
+      // Note sur 100 : 100 si exact, 50 si la surface est 2 fois trop grande ou trop petite, 0 au-delà de 4 fois
       const pts = Math.max(0, Math.round(100 * (1 - Math.abs(Math.log(guess)) / Math.log(4))));
       S.errs.push(Math.abs(Math.log(guess)));
-      u.gg.style.display = ''; u.g2.classList.add('done'); u.range.disabled = true;
+      u.gg.style.display = ''; u.g2.classList.add('done');
+      this.layout();
       const real = areaOf(c2.id) / areaOf(c1.id);
-      const off = guess >= 1 ? `${Math.round((guess - 1) * 100)} % trop grand` : `${Math.round((1 - guess) * 100)} % trop petit`;
-      const rel = real >= 1 ? `Taille réelle : ${c2.n} ≈ ${times(real)} ${c1.n}` : `Taille réelle : ${c1.n} ≈ ${times(1 / real)} ${c2.n}`;
-      u.res.innerHTML = `<b>+${pts} points</b> · ${Math.abs(Math.log(guess)) < 0.01 ? 'parfait' : esc(off)}<br><small>${esc(rel)} (territoire principal)</small>`;
+      const off = Math.abs(Math.log(guess)) < 0.01 ? 'parfait' : guess >= 1 ? `${Math.round((guess - 1) * 100)} % trop grand` : `${Math.round((1 - guess) * 100)} % trop petit`;
+      const rel = real >= 1 ? `${c2.n} ≈ ${times(real)} ${c1.n}` : `${c1.n} ≈ ${times(1 / real)} ${c2.n}`;
+      u.res.innerHTML = `<span class="scale-pts">${pts}<small> / 100</small></span><span>${esc(off)}</span><small>Taille réelle (pointillés) : ${esc(rel)}</small>`;
       u.res.className = 'scale-res on';
       A.scored(pts > 0, pts);
       A.setProgress((S.ri + 1) / S.pairs.length);
-      u.go.textContent = S.ri + 1 >= S.pairs.length ? 'Voir le résultat' : 'Suivant';
+      u.go.textContent = S.ri + 1 >= S.pairs.length ? 'Voir le résultat' : 'Manche suivante';
       u.go.focus({ preventScroll: true });
     },
     advance() {
@@ -541,8 +506,8 @@
       const S = A.S, b = best();
       const mean = S.errs.length ? Math.exp(S.errs.reduce((a, x) => a + x, 0) / S.errs.length) : null;
       return {
-        small: `${S.score} / ${S.total} points`,
-        stats: [['Temps', fmt(S.elapsed)], ['Écart moyen', mean == null ? '—' : `${Math.round((mean - 1) * 100)} %`], ['Record', b ? `${b.score} pts` : '—']],
+        big: `${S.score}`, small: `points sur ${S.total}`,
+        stats: [['Temps', fmt(S.elapsed)], ['Écart moyen', mean == null ? '—' : `${Math.round((mean - 1) * 100)} %`], ['Record', b ? `${b.score} / ${b.total}` : '—']],
       };
     },
   });

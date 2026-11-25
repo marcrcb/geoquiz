@@ -104,7 +104,6 @@
       <dl>
         <dt>Capitale</dt><dd><b>${esc(c.cap)}</b>${c.capAlt.length ? `<small>Aussi accepté : ${c.capAlt.map(esc).join(', ')}</small>` : ''}</dd>
         <dt>Continent</dt><dd>${esc(z)}</dd>
-        <dt>Superficie</dt><dd>${nf.format(c.area)} km²</dd>
         <dt>Position de la capitale</dt><dd>${ll(c.capLL[0], 'N', 'S')} · ${ll(c.capLL[1], 'E', 'O')}</dd>
         <dt>Voisins terrestres${c.nb.length ? ` (${c.nb.length})` : ''}</dt><dd class="ap-nb">${nb}</dd>
       </dl>

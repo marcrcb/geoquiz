@@ -11,13 +11,12 @@ Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête
 | 03 **Capitales** | **Liste complète** · **Un par un** — dans les deux sens (pays → capitale ou capitale → pays) · **Sur la carte** : clique l’emplacement de la capitale, réussi à moins de 300 km |
 | 04 **Silhouettes** | **Un par un** ou **Toutes les silhouettes** : reconnaître un pays à sa forme (164 pays ; micro-États et archipels trop dispersés exclus) |
 | 05 **Pays voisins** | Un pays s’affiche : nommer tous ceux qui partagent une frontière terrestre avec lui (10, 25 ou tous les pays) |
-| 06 **Le plus grand** | Duel entre deux pays — superficie, capitale la plus au nord ou la plus à l’est. La série s’arrête à la première erreur |
+| 06 **À l’échelle** | Deux silhouettes à la même échelle, posées côte à côte : le 1er pays sert de repère fixe, on agrandit ou rétrécit librement le 2e (glisser, pincer, molette, flèches, boutons) puis on valide. Chaque manche est notée sur 100 (100 si exact, 50 si la surface est 2 fois trop grande ou trop petite, 0 au-delà de 4 fois) ; 5 ou 10 manches
 | 07 **Chemin** | Relier deux pays par une suite de voisins, en un minimum d’étapes (bouton Retour, trajet optimal révélé si on passe) |
-| 08 **À l’échelle** | Deux silhouettes à la même échelle : le 1er pays est fixe, on agrandit ou réduit le 2e (curseur, molette, flèches) jusqu’à sa vraie taille. Jusqu’à 100 points par manche selon l’écart de surface |
 
 ### Atlas
 
-Carte libre, hors des jeux : noms des pays et des capitales qui apparaissent selon le zoom (sans chevauchement), recherche par pays ou par capitale, et une fiche au clic sur un pays : drapeau, nom et variantes acceptées, capitale (et variantes), continent, superficie, position de la capitale, voisins terrestres cliquables, silhouette, codes ISO.
+Carte libre, hors des jeux : noms des pays et des capitales qui apparaissent selon le zoom (sans chevauchement), recherche par pays ou par capitale, et une fiche au clic sur un pays : drapeau, nom et variantes acceptées, capitale (et variantes), continent, position de la capitale, voisins terrestres cliquables, silhouette, codes ISO.
 
 Dans les grilles, une **case active** est surlignée : la réponse n’est acceptée que pour cette case, puis on passe automatiquement à la suivante. Clic sur une case pour la choisir, Tab / Maj+Tab ou « Passer » pour se déplacer ; les cases déjà trouvées sont sautées.
 

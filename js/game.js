@@ -58,13 +58,6 @@
       options: [{ id: 'rounds', label: 'Pays', choices: [['10', '10'], ['25', '25'], ['all', 'Tous']] }],
       placeholder: 'Un pays voisin…',
     },
-    bigger: {
-      title: 'Le plus grand', num: '06', desc: 'Deux pays : lequel l’emporte ? Une erreur et c’est fini.',
-      modes: [{ id: 'duel', name: 'Duel', desc: 'Choisis entre deux pays. La série continue tant que tu as raison.', custom: 'bigger' }],
-      options: [{ id: 'crit', label: 'Critère', choices: [['area', 'Superficie'], ['north', 'Capitale la plus au nord'], ['east', 'Capitale la plus à l’est']] }],
-      timers: ['free'],
-      bestText: v => `Record monde : ${v} d’affilée`,
-    },
     path: {
       title: 'Chemin', num: '07', desc: 'Relie deux pays en passant par des voisins.',
       modes: [{ id: 'route', name: 'Relier deux pays', desc: 'Tape une suite de pays voisins pour aller du départ à l’arrivée, en un minimum d’étapes.', custom: 'path' }],
@@ -73,9 +66,9 @@
       placeholder: 'Pays suivant…',
     },
     scale: {
-      title: 'À l’échelle', num: '08', desc: 'Deux pays : donne au second sa vraie taille, avec le premier comme seul repère.',
-      modes: [{ id: 'resize', name: 'Ajuster la taille', desc: 'Le premier pays est fixe. Agrandis ou réduis le second jusqu’à sa taille réelle, puis valide.', custom: 'scale' }],
-      options: [{ id: 'rounds', label: 'Manches', choices: [['5', '5'], ['10', '10'], ['20', '20']] }],
+      title: 'À l’échelle', num: '06', desc: 'Deux pays : donne au second sa vraie taille, avec le premier comme seul repère.',
+      modes: [{ id: 'resize', name: 'Ajuster la taille', desc: 'Agrandis ou rétrécis librement le second pays à côté du premier, puis valide : chaque manche est notée sur 100.', custom: 'scale' }],
+      options: [{ id: 'rounds', label: 'Manches', choices: [['5', '5'], ['10', '10']] }],
       timers: ['free', 'timed'],
       note: 'Seul le territoire principal de chaque pays est représenté (sans les îles lointaines), à la même échelle.',
     },

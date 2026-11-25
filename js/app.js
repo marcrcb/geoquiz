@@ -10,9 +10,8 @@
     ['gameCards', 'capitals', 'Pays → capitale, capitale → pays, ou place-les sur la carte.'],
     ['gameCards2', 'shapes', 'Reconnais un pays à sa seule silhouette.'],
     ['gameCards2', 'neighbors', 'Nomme tous les pays qui touchent celui affiché.'],
-    ['gameCards2', 'bigger', 'Lequel est le plus grand, le plus au nord… ? Une erreur et c’est fini.'],
-    ['gameCards2', 'path', 'Va d’un pays à l’autre en passant par des voisins.'],
     ['gameCards2', 'scale', 'Redimensionne un pays à sa vraie taille, avec un autre pour seul repère.'],
+    ['gameCards2', 'path', 'Va d’un pays à l’autre en passant par des voisins.'],
   ];
   for (const [host, id, txt] of CARDS) {
     const G = GAMES[id];
