@@ -80,10 +80,44 @@
   addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#setup').hidden) $('#setup').hidden = true; });
 
   /* ---------- Hors ligne & installation ---------- */
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    const banner = $('#updateBanner');
+    let requested = false; // on ne recharge que si l'utilisateur l'a demandé (pas lors de la toute première installation)
+    // Une nouvelle version est prête (installée, en attente) : on le propose sans interrompre la partie
+    const offer = w => { if (!w || !navigator.serviceWorker.controller) return; banner.hidden = false; $('#updateNow').onclick = () => { requested = true; w.postMessage('skipWaiting'); }; };
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      offer(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        w.addEventListener('statechange', () => { if (w.state === 'installed') offer(w); });
+      });
+      // vérifier les mises à jour au retour sur l'appli (et toutes les heures si elle reste ouverte)
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+      setInterval(() => reg.update().catch(() => {}), 3600e3);
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (requested) { requested = false; location.reload(); } });
+    $('#updateLater').addEventListener('click', () => (banner.hidden = true));
+  }
   let deferred = null;
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('#installBtn').hidden = false; });
   $('#installBtn').addEventListener('click', async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('#installBtn').hidden = true; });
+
+  /* ---------- Thème : auto (réglage du téléphone), clair, sombre ---------- */
+  const THEMES = [['auto', 'Thème : auto'], ['light', 'Thème : clair'], ['dark', 'Thème : sombre']];
+  let theme = store.get('theme', 'auto');
+  const media = matchMedia('(prefers-color-scheme: light)');
+  function applyTheme() {
+    if (theme === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme;
+    const light = theme === 'light' || (theme === 'auto' && media.matches);
+    document.querySelector('meta[name=theme-color]').setAttribute('content', light ? '#fafafa' : '#0a0a0a');
+    $('#themeBtn').textContent = THEMES.find(t => t[0] === theme)[1];
+  }
+  $('#themeBtn').addEventListener('click', () => {
+    theme = THEMES[(THEMES.findIndex(t => t[0] === theme) + 1) % THEMES.length][0];
+    store.set('theme', theme); applyTheme();
+  });
+  media.addEventListener('change', applyTheme);
+  applyTheme();
 
   window.App = { show };
   // Carte décorative de l'accueil, dessinée une fois après le premier affichage

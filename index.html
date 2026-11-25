@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="css/style.css">
+<script>try { const t = JSON.parse(localStorage.getItem('geoquiz:theme')); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
 
@@ -19,7 +20,10 @@
 <main id="home" class="screen active">
   <header class="home-head">
     <div class="brand"><img src="icons/icon.svg" alt="" class="brand-icon"><span>Géo Quiz</span></div>
-    <button class="link" id="installBtn" hidden>Installer l’application</button>
+    <div class="head-actions">
+      <button class="link" id="installBtn" hidden>Installer l’application</button>
+      <button class="btn small theme-btn" id="themeBtn" aria-label="Changer de thème"></button>
+    </div>
   </header>
 
   <section class="hero">
@@ -81,6 +85,7 @@
   </header>
   <div class="atlas-body">
     <div class="map-svg" id="atlasMap"></div>
+    <nav class="atlas-filter chips" id="atlasFilter" aria-label="Filtrer par continent"></nav>
     <div class="map-ctrl">
       <button class="icon-btn" data-azoom="in" aria-label="Zoomer">+</button>
       <button class="icon-btn" data-azoom="out" aria-label="Dézoomer">−</button>
@@ -198,6 +203,13 @@
       <button class="btn primary" id="rAgain">Rejouer</button>
     </div>
   </div>
+</div>
+
+<!-- Mise à jour disponible -->
+<div class="update-banner" id="updateBanner" role="status" hidden>
+  <span>Nouvelle version disponible</span>
+  <button class="btn primary small" id="updateNow">Recharger</button>
+  <button class="icon-btn" id="updateLater" aria-label="Plus tard">✕</button>
 </div>
 
 <script src="vendor/d3.min.js"></script>

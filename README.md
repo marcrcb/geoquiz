@@ -16,7 +16,7 @@ Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête
 
 ### Atlas
 
-Carte libre, hors des jeux : noms des pays et des capitales qui apparaissent selon le zoom (sans chevauchement), recherche par pays ou par capitale, et une fiche au clic sur un pays : drapeau, nom et variantes acceptées, capitale (et variantes), continent, position de la capitale, voisins terrestres cliquables, silhouette, codes ISO.
+Carte libre, hors des jeux : filtre par continent, noms des pays et des capitales qui apparaissent selon le zoom (sans chevauchement), recherche par pays ou par capitale, et une fiche au clic sur un pays : drapeau, nom et variantes acceptées, capitale (et variantes), continent, position de la capitale, voisins terrestres cliquables, silhouette, codes ISO.
 
 Dans les grilles, une **case active** est surlignée : la réponse n’est acceptée que pour cette case, puis on passe automatiquement à la suivante. Clic sur une case pour la choisir, Tab / Maj+Tab ou « Passer » pour se déplacer ; les cases déjà trouvées sont sautées.
 
@@ -24,6 +24,8 @@ Pour chaque partie : région (Monde, Europe, Afrique, Asie, Amérique du Nord, A
 
 **Pause** : bouton ⏸ à côté du chrono (ou Échap quand la saisie est vide ; Échap/Entrée pour reprendre). Le chrono s’arrête, la progression est conservée et le plateau est masqué. La partie se met aussi en pause toute seule quand on change d’onglet ou d’application.
 
+- **Thème** auto (suit le réglage du téléphone), clair ou sombre — bouton en haut de l’accueil. Toujours en noir et blanc, seuls les drapeaux sont en couleur.
+- **Mises à jour** : une nouvelle version s’installe en arrière-plan ; un bandeau « Nouvelle version disponible — Recharger » propose de l’activer, sans jamais interrompre une partie.
 - Saisie tolérante : accents, majuscules, tirets et articles ignorés ; variantes acceptées (Birmanie/Myanmar, Kiev/Kyiv, RDC…).
 - Quand un nom est le début d’un autre (Niger → Nigeria, Soudan → Soudan du Sud), l’appli attend une seconde avant de valider.
 - Carte interactive : zoom molette/pincement, déplacement, micro-États en pastilles cliquables, légende par continent.
@@ -47,6 +49,14 @@ npm run serve   # http://localhost:8080
 ```
 
 Pour corriger un nom ou une capitale : modifier `scripts/pays.txt` puis `npm run build` (le cache hors ligne est mis à jour automatiquement grâce à la version calculée).
+
+## Tests
+
+```bash
+npm test        # 21 scénarios de bout en bout (ordinateur + mobile), serveur local lancé automatiquement
+```
+
+Les tests couvrent l’accueil et le thème, les trois jeux classiques, les quatre défis, la pause, l’atlas (recherche, fiche, filtre, pastilles), le mode hors ligne et l’affichage mobile. Ils sont relancés par GitHub à chaque envoi sur `main` (onglet **Actions**).
 
 ## Publication sur GitHub Pages
 

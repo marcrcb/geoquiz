@@ -153,7 +153,7 @@ fs.mkdirSync(out('flags/thumb'), { recursive: true });
 for (const c of countries) {
   const src = path.join(NM, 'flag-icons/flags/4x3', c.a2 + '.svg');
   fs.copyFileSync(src, out('flags', c.a2 + '.svg'));
-  await sharp(src, { density: 200 }).resize(320, 240, { fit: 'cover' }).webp({ quality: 82 }).toFile(out('flags/thumb', c.a2 + '.webp'));
+  await sharp(src, { density: 200 }).resize(320, 240, { fit: 'cover' }).webp({ quality: 75, effort: 6, smartSubsample: true }).toFile(out('flags/thumb', c.a2 + '.webp'));
 }
 fs.copyFileSync(path.join(NM, 'd3/dist/d3.min.js'), out('vendor/d3.min.js'));
 fs.copyFileSync(path.join(NM, 'topojson-client/dist/topojson-client.min.js'), out('vendor/topojson-client.min.js'));

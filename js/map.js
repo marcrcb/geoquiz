@@ -62,7 +62,7 @@
       // Hachures pour les pays manqués
       svg.append('defs').append('pattern').attr('id', 'hatch').attr('patternUnits', 'userSpaceOnUse')
         .attr('width', 4).attr('height', 4).attr('patternTransform', 'rotate(45)')
-        .call(p => { p.append('rect').attr('width', 4).attr('height', 4).attr('fill', '#2c2c2c'); p.append('rect').attr('width', 1.4).attr('height', 4).attr('fill', '#9a9a9a'); });
+        .call(p => { p.append('rect').attr('width', 4).attr('height', 4).style('fill', 'var(--land)'); p.append('rect').attr('width', 1.4).attr('height', 4).style('fill', 'var(--hatch)'); });
 
       const g = svg.append('g'); this.g = g;
       g.append('path').attr('class', 'sphere').attr('d', path({ type: 'Sphere' }));
@@ -158,6 +158,15 @@
 
     zoomBy(f) { this.svg.transition().duration(300).call(this.zoom.scaleBy, f); }
     resetZoom() { this.svg.transition().duration(500).call(this.zoom.transform, d3.zoomIdentity); }
+    /** Cadre une région (Europe, Afrique…) sur une carte du monde */
+    zoomToZone(zone) {
+      const z = ZONES[zone];
+      if (!z || !z.box) return this.resetZoom();
+      const [[x0, y0], [x1, y1]] = this.path.bounds(boxGeom(z.box));
+      const k = Math.max(1, Math.min(12, .92 / Math.max((x1 - x0) / this.W, (y1 - y0) / this.H)));
+      const t = d3.zoomIdentity.translate(this.W / 2, this.H / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+      this.svg.transition().duration(700).call(this.zoom.transform, t);
+    }
     zoomTo(id, maxK = 6) {
       const f = this.feats[id];
       let [[x0, y0], [x1, y1]] = f ? this.path.bounds(f) : [[0, 0], [0, 0]];

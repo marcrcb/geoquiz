@@ -5,10 +5,12 @@
   "description": "Quiz géographie hors ligne : carte, drapeaux, capitales",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "serve": "npx --yes serve -l 8080 ."
+    "serve": "node tests/server.mjs 8080",
+    "test": "playwright test"
   },
   "devDependencies": {
     "@fontsource/inter": "5.3.0",
+    "@playwright/test": "^1.63.0",
     "d3": "^7.9.0",
     "flag-icons": "7.6.0",
     "sharp": "^0.35.5",

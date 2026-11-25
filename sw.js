@@ -1,9 +1,15 @@
-/* Service worker : met tout le site en cache pour un fonctionnement 100 % hors ligne. */
+/* Service worker : met tout le site en cache pour un fonctionnement 100 % hors ligne.
+   Une nouvelle version s'installe en arrière-plan puis attend : la page affiche un bandeau
+   « Nouvelle version disponible » et c'est l'utilisateur qui déclenche le passage. */
 importScripts('precache.js');
 const CACHE = 'geoquiz-' + self.PRECACHE_VERSION;
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(self.PRECACHE)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(self.PRECACHE)));
+});
+
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {

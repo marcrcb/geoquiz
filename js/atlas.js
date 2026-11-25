@@ -41,16 +41,17 @@
       const kMin = Math.max(1, (c.n.length * CHAR) / Math.max(w * 1.25, 1));
       const t = labelG.append('text').attr('class', 'atlas-label').attr('x', pt[0]).attr('y', pt[1]).text(c.n).node();
       t.__id = c.id;
-      labels.push({ el: t, id: c.id, x: pt[0], y: pt[1], w: c.n.length * CHAR, area: c.area, kMin: map.markers[c.id] ? Math.max(kMin, 5) : kMin });
+      labels.push({ el: t, id: c.id, cont: c.c, x: pt[0], y: pt[1], w: c.n.length * CHAR, area: c.area, kMin: map.markers[c.id] ? Math.max(kMin, 5) : kMin });
       const q = map.proj([c.capLL[1], c.capLL[0]]);
       if (!q) continue;
       const dot = capG.append('circle').attr('cx', q[0]).attr('cy', q[1]).node();
       const ct = capLabelG.append('text').attr('class', 'atlas-cap').attr('x', q[0]).attr('y', q[1]).attr('dy', '-0.55em').text(c.cap).node();
-      caps.push({ dot, el: ct, x: q[0], y: q[1], w: c.cap.length * CHAR * .9, kMin: Math.max(2.5, kMin * 1.6) });
+      caps.push({ dot, el: ct, id: c.id, cont: c.c, x: q[0], y: q[1], w: c.cap.length * CHAR * .9, kMin: Math.max(2.5, kMin * 1.6) });
     }
     labels.sort((a, b) => b.area - a.area); // les grands pays d'abord
     scaleLayers(k); visibility(k);
     if (sel) map.set(sel, 'focus');
+    if (filter !== 'ALL') applyFilter(filter, false);
   }
   /** Taille constante à l'écran : un seul attribut par groupe, pas un par texte */
   function scaleLayers(k) {
@@ -73,18 +74,37 @@
       const mk = map.markers[l.id], below = !!mk && mk.style.display !== 'none';
       l.el.setAttribute('dy', below ? '1.35em' : '0');
       const hw = (l.w / 2 + 3) / k, hh = 8 / k, y = l.y + (below ? 16 / k : 0);
-      const on = l.id === sel || (k >= l.kMin && fits(l.x - hw, y - hh, l.x + hw, y + hh));
+      const on = l.id === sel || (inFilter(l) && k >= l.kMin && fits(l.x - hw, y - hh, l.x + hw, y + hh));
       if (on) placed.push([l.x - hw, y - hh, l.x + hw, y + hh]);
       l.el.classList.toggle('hide', !on);
     }
     for (const c of caps) {
       const hw = (c.w / 2 + 2) / k, top = c.y - 15 / k;
-      const on = k >= c.kMin && fits(c.x - hw, top, c.x + hw, c.y);
+      const on = inFilter(c) && k >= c.kMin && fits(c.x - hw, top, c.x + hw, c.y);
       if (on) placed.push([c.x - hw, top, c.x + hw, c.y]);
       c.el.classList.toggle('hide', !on);
-      c.dot.classList.toggle('hide', k < 1.6);
+      c.dot.classList.toggle('hide', k < 1.6 || !inFilter(c));
     }
   }
+
+  /* ---------- Filtre par continent ---------- */
+  let filter = 'ALL';
+  const inFilter = x => filter === 'ALL' || x.cont === filter || x.id === sel;
+  function applyFilter(zone, zoom = true) {
+    filter = zone;
+    for (const b of document.querySelectorAll('#atlasFilter [data-z]')) b.classList.toggle('on', b.dataset.z === zone);
+    if (!map) return;
+    // pays des autres continents estompés (toujours cliquables), sans nom ni capitale
+    for (const c of COUNTRIES) {
+      const dim = zone !== 'ALL' && c.c !== zone;
+      map.paths[c.id] && map.paths[c.id].classList.toggle('dim', dim);
+      map.markers[c.id] && map.markers[c.id].classList.toggle('dim', dim);
+    }
+    visibility(map.k);
+    if (zoom) map.zoomToZone(zone);
+  }
+  document.querySelector('#atlasFilter').innerHTML = Game.ZONES.map(([id, name]) => `<button class="chip${id === 'ALL' ? ' on' : ''}" data-z="${id}">${name}</button>`).join('');
+  document.querySelector('#atlasFilter').addEventListener('click', e => { const b = e.target.closest('[data-z]'); if (b) applyFilter(b.dataset.z); });
 
   /* ---------- Fiche pays ---------- */
   function select(id, zoom) {
