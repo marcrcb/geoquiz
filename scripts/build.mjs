@@ -93,7 +93,7 @@ fs.writeFileSync(out('data/world.js'), 'window.WORLD=' + JSON.stringify(t) + ';\
 // ---------- Silhouettes (pré-calculées : projection centrée sur chaque pays, sans déformation) ----------
 const d3 = await import('d3');
 const SW = 400, SH = 300;
-const shapes = {};
+const shapes = {}, scale = {};
 /** Ne garde que le territoire principal : polygones à moins de 800 km (de proche en proche) du plus grand. */
 function mainland(f) {
   if (f.geometry.type !== 'MultiPolygon') return f;
@@ -118,8 +118,10 @@ for (const f0 of topo.feature(t, t.objects.countries).features) {
   const [[x0, y0], [x1, y1]] = p.bounds(f);
   if (pts < 14 || p.area(f) < (x1 - x0) * (y1 - y0) * 0.05) continue;
   shapes[f.id] = p(f);
+  // Projection à aires égales : km par pixel (linéaire) pour comparer deux pays à la même échelle
+  scale[f.id] = +Math.sqrt(d3.geoArea(f) * 6371 ** 2 / p.area(f)).toFixed(3);
 }
-fs.writeFileSync(out('data/shapes.js'), '// Généré par scripts/build.mjs\nwindow.SHAPES=' + JSON.stringify(shapes) + ';\n');
+fs.writeFileSync(out('data/shapes.js'), '// Généré par scripts/build.mjs\nwindow.SHAPES=' + JSON.stringify(shapes) + ';\nwindow.SHAPE_KM=' + JSON.stringify(scale) + ';\n');
 console.log('Silhouettes :', Object.keys(shapes).length, 'pays ; écartés :', countries.filter(c => !shapes[c.id]).map(c => c.id).join(' '));
 fs.writeFileSync(out('data/countries.js'), '// Généré par scripts/build.mjs — modifiez scripts/pays.txt\nwindow.COUNTRIES=' +
   JSON.stringify(countries) + ';\n');

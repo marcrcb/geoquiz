@@ -72,6 +72,13 @@
       options: [{ id: 'rounds', label: 'Trajets', choices: [['5', '5'], ['10', '10']] }],
       placeholder: 'Pays suivant…',
     },
+    scale: {
+      title: 'À l’échelle', num: '08', desc: 'Deux pays : donne au second sa vraie taille, avec le premier comme seul repère.',
+      modes: [{ id: 'resize', name: 'Ajuster la taille', desc: 'Le premier pays est fixe. Agrandis ou réduis le second jusqu’à sa taille réelle, puis valide.', custom: 'scale' }],
+      options: [{ id: 'rounds', label: 'Manches', choices: [['5', '5'], ['10', '10'], ['20', '20']] }],
+      timers: ['free', 'timed'],
+      note: 'Seul le territoire principal de chaque pays est représenté (sans les îles lointaines), à la même échelle.',
+    },
   };
 
   /** Modules des jeux personnalisés (enregistrés par js/modes.js) */

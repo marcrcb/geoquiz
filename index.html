@@ -34,6 +34,15 @@
   <section class="games" id="gameCards"></section>
   <h2 class="games-h">Nouveaux défis</h2>
   <section class="games games-4" id="gameCards2"></section>
+  <h2 class="games-h">Réviser</h2>
+  <section class="games games-1">
+    <button class="game-card atlas-card" id="openAtlas">
+      <span class="gc-num">Atlas</span>
+      <h3>Explorer la carte</h3>
+      <p>Tous les pays avec leur nom et leur capitale. Clique sur un pays pour voir sa fiche : drapeau, capitale, superficie, voisins, silhouette.</p>
+      <span class="gc-go">Ouvrir l’atlas <span aria-hidden="true">→</span></span>
+    </button>
+  </section>
 
   <footer class="foot">Carte : Natural Earth · Drapeaux : flag-icons · Données à jour 2026</footer>
 </main>
@@ -59,6 +68,28 @@
     </div>
   </div>
 </div>
+
+<!-- ================= ATLAS ================= -->
+<main id="atlas" class="screen">
+  <header class="game-bar">
+    <button class="icon-btn" id="atlasBack" title="Retour au menu" aria-label="Retour au menu">←</button>
+    <div class="gb-title"><span>Atlas</span><small>Clique sur un pays pour voir sa fiche</small></div>
+    <div class="atlas-search">
+      <input id="atlasSearch" type="search" placeholder="Chercher un pays ou une capitale…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Chercher un pays ou une capitale">
+      <ul class="atlas-sugg" id="atlasSugg" hidden></ul>
+    </div>
+  </header>
+  <div class="atlas-body">
+    <div class="map-svg" id="atlasMap"></div>
+    <div class="map-ctrl">
+      <button class="icon-btn" data-azoom="in" aria-label="Zoomer">+</button>
+      <button class="icon-btn" data-azoom="out" aria-label="Dézoomer">−</button>
+      <button class="icon-btn" data-azoom="reset" aria-label="Recentrer">⤢</button>
+    </div>
+    <div class="tooltip" id="atlasTip" hidden></div>
+    <aside class="atlas-panel" id="atlasPanel" hidden aria-live="polite"></aside>
+  </div>
+</main>
 
 <!-- ================= JEU ================= -->
 <main id="game" class="screen">
@@ -178,6 +209,7 @@
 <script src="js/map.js"></script>
 <script src="js/game.js"></script>
 <script src="js/modes.js"></script>
+<script src="js/atlas.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

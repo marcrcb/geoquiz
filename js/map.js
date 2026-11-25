@@ -33,11 +33,12 @@
   }
 
   class MapView {
-    constructor(host, { zone = 'ALL', inZone = () => true, onClick, onPoint, markers = true }) {
+    constructor(host, { zone = 'ALL', inZone = () => true, onClick, onPoint, markers = true, tip, onZoom, onZoomEnd, onBuild }) {
       this.host = host; this.zone = zone; this.inZone = inZone; this.onClick = onClick; this.onPoint = onPoint; this.showMarkers = markers;
+      this.onZoom = onZoom; this.onZoomEnd = onZoomEnd; this.onBuild = onBuild;
       this.byId = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
       this.state = {}; this.reveal = false; this.k = 1;
-      this.tip = $('#tooltip'); this.tipId = null;
+      this.tip = tip || $('#tooltip'); this.tipId = null;
       this.build();
     }
 
@@ -138,11 +139,14 @@
             this.fx.selectAll('text').attr('font-size', 14 / k).attr('stroke-width', 3 / k);
             this.fx.selectAll('circle[data-r]').attr('r', function () { return this.dataset.r / k; }).attr('stroke-width', 1.5 / k);
             this.fxLines.attr('stroke-width', 1.5 / k);
+            if (this.onZoom) this.onZoom(k);
           }
-        });
+        })
+        .on('end', e => { if (this.onZoomEnd) this.onZoomEnd(e.transform.k); });
       svg.call(this.zoom).on('dblclick.zoom', null);
       this.k = 1;
       for (const id in this.state) this.set(id, this.state[id]);
+      if (this.onBuild) this.onBuild(this);
     }
 
     zoomBy(f) { this.svg.transition().duration(300).call(this.zoom.scaleBy, f); }

@@ -39,7 +39,7 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 
 .screen { display: none; min-height: 100%; }
 .screen.active { display: block; animation: fade .25s ease both; }
-#game.screen.active { display: flex; flex-direction: column; height: 100dvh; }
+#game.screen.active, #atlas.screen.active { display: flex; flex-direction: column; height: 100dvh; }
 @keyframes fade { from { opacity: 0; } }
 
 .kicker { margin: 0 0 10px; color: var(--muted); font-size: .75rem; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
@@ -78,7 +78,11 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .games-h { font-size: .75rem; font-weight: 500; color: var(--muted); letter-spacing: .14em; text-transform: uppercase; margin: 34px 0 12px; }
 .games-h:first-of-type { margin-top: 0; }
 .games { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.games-4 { grid-template-columns: repeat(4, 1fr); }
+.games-4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.games-1 { grid-template-columns: 1fr; }
+.atlas-card { min-height: 0; }
+.atlas-card h3 { margin-top: 6px; }
+.atlas-card p { max-width: 620px; }
 .game-card {
   text-align: left; border: 0; border-right: 1px solid var(--line); background: var(--bg); padding: 26px 24px;
   display: flex; flex-direction: column; gap: 10px; min-height: 230px; transition: background-color .2s;
@@ -321,6 +325,61 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .grid.shapes .tile-inner .shape { aspect-ratio: 4 / 3; height: auto; background: var(--bg-2); border-radius: 4px; padding: 4px; }
 .flag-ph { width: 44px; aspect-ratio: 4 / 3; flex: none; border-radius: 4px; border: 1px dashed var(--line-2); }
 
+/* ============ À l'échelle ============ */
+.scale { width: min(860px, 100%); text-align: center; }
+.scale-q { font-size: clamp(1.2rem, 2.8vw, 1.7rem); font-weight: 600; letter-spacing: -.02em; margin: 0 0 14px; }
+.scale-names { display: grid; grid-template-columns: 1fr 1fr; }
+.scale-names b { display: block; font-size: 1.1rem; font-weight: 600; }
+.scale-names small { color: var(--muted); font-size: .78rem; }
+.scale-svg { width: 100%; height: auto; display: block; touch-action: none; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); margin-top: 8px; }
+.scale-sep { stroke: var(--line); stroke-dasharray: 4 4; }
+.scale-svg .s1 path { fill: #8a8a8a; }
+.scale-svg .s2 path { fill: var(--text); }
+.scale-svg .s2.done path { fill: #5a5a5a; }
+.scale-svg .sg path { fill: none; stroke: var(--text); stroke-width: 2px; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.scale-ctrl { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.scale-ctrl input[type=range] { flex: 1; accent-color: var(--text); height: 28px; }
+.scale-res { min-height: 3em; margin: 14px 0 0; color: var(--muted); }
+.scale-res.on { animation: fade .3s; }
+.scale-res b { color: var(--text); }
+.scale-res small { font-size: .85rem; }
+
+/* ============ Atlas ============ */
+.atlas-body { flex: 1; position: relative; min-height: 0; overflow: hidden; background: var(--bg); }
+.atlas-body .map-svg { position: absolute; inset: 0; }
+.atlas-search { position: relative; width: min(340px, 45vw); }
+.atlas-search input { width: 100%; background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; color: var(--text); font: 500 .92rem var(--font); padding: 9px 12px; outline: 0; }
+.atlas-search input:focus { border-color: var(--text); }
+.atlas-sugg { position: absolute; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; z-index: 20; box-shadow: 0 8px 30px rgba(0, 0, 0, .6); }
+.atlas-sugg button { width: 100%; display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 7px 8px; border-radius: 6px; text-align: left; }
+.atlas-sugg button:hover, .atlas-sugg button.first { background: var(--surface-2); }
+.atlas-sugg img { width: 26px; border-radius: 2px; }
+.atlas-sugg span { flex: 1; font-weight: 500; }
+.atlas-sugg small { color: var(--muted); }
+.atlas-sugg .none { padding: 8px; color: var(--muted); font-size: .9rem; }
+.atlas-label, .atlas-cap { font-family: var(--font); paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; text-anchor: middle; pointer-events: none; }
+.atlas-label { fill: #d6d6d6; font-weight: 600; dominant-baseline: middle; }
+.atlas-cap { fill: var(--muted); font-weight: 500; }
+.atlas-caps circle { fill: var(--text); stroke: var(--bg); pointer-events: none; }
+.atlas-body .hide { display: none; }
+.atlas-panel { position: absolute; top: 14px; right: 64px; bottom: 14px; width: 340px; overflow-y: auto; z-index: 5; background: var(--bg); border: 1px solid var(--line-2); border-radius: 14px; padding: 22px; box-shadow: 0 8px 30px rgba(0, 0, 0, .6); animation: rise .2s ease both; }
+.atlas-panel .close { position: absolute; top: 12px; right: 12px; }
+.ap-flag { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); display: block; }
+.atlas-panel h2 { font-size: 1.6rem; margin-top: 16px; }
+.ap-alt { margin: 4px 0 0; color: var(--muted); font-size: .85rem; }
+.atlas-panel dl { margin: 18px 0 0; display: grid; gap: 4px; }
+.atlas-panel dt { color: var(--muted); font-size: .72rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; margin-top: 10px; }
+.atlas-panel dd { margin: 0; }
+.atlas-panel dd small { display: block; color: var(--muted); font-size: .82rem; }
+.ap-nb { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px !important; }
+.ap-nb button { background: none; cursor: pointer; font: inherit; font-size: .82rem; }
+.ap-nb button:hover { background: var(--text); color: var(--bg); }
+.muted { color: var(--muted); font-size: .9rem; }
+.ap-shape { margin: 18px 0 0; }
+.ap-shape .shape { aspect-ratio: 4 / 3; height: auto; background: var(--bg-2); border: 1px solid var(--line); border-radius: 6px; }
+.ap-shape figcaption { color: var(--dim); font-size: .75rem; margin-top: 4px; }
+.ap-code { color: var(--dim); font-size: .75rem; margin: 14px 0 0; }
+
 /* ============ Responsive ============ */
 @media (max-width: 860px) {
   .hero { padding: 40px 0 28px; }
@@ -339,6 +398,14 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
   #giveUpBtn { padding: .5em .7em; font-size: .8rem; }
   .modal-card { padding: 22px 18px; }
   .modes { grid-template-columns: 1fr; }
+  .scale-names b { font-size: .95rem; }
+  .scale-ctrl { flex-wrap: wrap; }
+  .scale-ctrl input[type=range] { order: -1; flex-basis: 100%; }
+  .scale-ctrl .btn { flex: 1; }
+  #atlas .gb-title { display: none; }
+  .atlas-search { flex: 1; width: auto; }
+  .atlas-panel { top: auto; left: 10px; right: 10px; bottom: 10px; width: auto; max-height: 58%; padding: 18px; }
+  .ap-flag { width: 120px; }
   .map-panel { top: 10px; width: calc(100% - 70px); left: 10px; transform: none; padding: 10px; }
   .mp-head strong { font-size: 1rem; }
   .duel-cards { grid-template-columns: 1fr 1fr; gap: 10px; }

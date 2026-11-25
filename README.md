@@ -13,6 +13,11 @@ Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête
 | 05 **Pays voisins** | Un pays s’affiche : nommer tous ceux qui partagent une frontière terrestre avec lui (10, 25 ou tous les pays) |
 | 06 **Le plus grand** | Duel entre deux pays — superficie, capitale la plus au nord ou la plus à l’est. La série s’arrête à la première erreur |
 | 07 **Chemin** | Relier deux pays par une suite de voisins, en un minimum d’étapes (bouton Retour, trajet optimal révélé si on passe) |
+| 08 **À l’échelle** | Deux silhouettes à la même échelle : le 1er pays est fixe, on agrandit ou réduit le 2e (curseur, molette, flèches) jusqu’à sa vraie taille. Jusqu’à 100 points par manche selon l’écart de surface |
+
+### Atlas
+
+Carte libre, hors des jeux : noms des pays et des capitales qui apparaissent selon le zoom (sans chevauchement), recherche par pays ou par capitale, et une fiche au clic sur un pays : drapeau, nom et variantes acceptées, capitale (et variantes), continent, superficie, position de la capitale, voisins terrestres cliquables, silhouette, codes ISO.
 
 Dans les grilles, une **case active** est surlignée : la réponse n’est acceptée que pour cette case, puis on passe automatiquement à la suivante. Clic sur une case pour la choisir, Tab / Maj+Tab ou « Passer » pour se déplacer ; les cases déjà trouvées sont sautées.
 

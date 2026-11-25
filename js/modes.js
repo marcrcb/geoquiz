@@ -6,7 +6,9 @@
   const KEYS = new Map(COUNTRIES.map(c => [c.id, [c.n, ...c.alt].map(A.key)]));
   const ll = c => [c.capLL[1], c.capLL[0]]; // [lon, lat] de la capitale
   const km = (a, b) => d3.geoDistance(a, b) * 6371;
-  const nf = new Intl.NumberFormat('fr-FR');
+  const nf0 = new Intl.NumberFormat('fr-FR');
+  // espace insécable classique : la police n'a pas l'espace fine utilisée par le format français
+  const nf = { format: x => nf0.format(x).replace(/\u202f/g, '\u00a0') };
   const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
   /** Cherche la saisie parmi des pays candidats ; attend si elle est le début d'un autre nom (Niger → Nigeria). */
@@ -400,6 +402,147 @@
       return {
         small: `${S.score} / ${S.total} trajets`,
         stats: [['Temps', fmt(S.elapsed)], ['Trajets optimaux', `${S.optimal} / ${S.routes.length}`], ['Étapes en trop', String(S.extra)]],
+      };
+    },
+  });
+
+  /* =====================================================================
+     À l'échelle : redimensionner le 2e pays par rapport au 1er (fixe)
+     ===================================================================== */
+  /** Aire (px²) d'un tracé SVG « M x,y L… Z » produit au build */
+  function pathArea(d) {
+    let total = 0;
+    for (const ring of d.split('M').filter(Boolean)) {
+      const pts = ring.replace(/Z/g, '').split('L').map(p => p.split(',').map(Number));
+      let a = 0;
+      for (let i = 0; i < pts.length; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % pts.length]; a += x1 * y2 - x2 * y1; }
+      total += a / 2; // anneaux intérieurs (lacs) orientés en sens inverse : ils se soustraient
+    }
+    return Math.abs(total);
+  }
+  const AREA = {}; // km² du territoire principal, d'après la silhouette
+  const areaOf = id => (AREA[id] ??= pathArea(SHAPES[id]) * SHAPE_KM[id] ** 2);
+  const times = r => `${nf.format(+(r >= 10 ? r.toFixed(0) : r.toFixed(1)))} ×`;
+
+  register('scale', {
+    items: cfg => zoneItems(cfg.zone).filter(c => SHAPES[c.id]),
+    count: cfg => +cfg.rounds || 10,
+    secPer: () => 30,
+    noReview: true,
+    start() {
+      const S = A.S, n = +S.cfg.rounds || 10;
+      S.pairs = this.pick(n);
+      A.setTotal(S.pairs.length * 100);
+      S.errs = []; S.ri = -1;
+      A.el.form.hidden = true;
+      const st = A.el.customStage; st.hidden = false;
+      st.innerHTML = `<div class="scale">
+        <p class="scale-q">Donne au 2<sup>e</sup> pays sa vraie taille</p>
+        <div class="scale-names"><div><b class="n1"></b><small>fixe</small></div><div><b class="n2"></b><small>à ajuster</small></div></div>
+        <svg class="scale-svg" viewBox="0 0 800 380" aria-label="Comparaison des deux pays">
+          <line x1="400" y1="20" x2="400" y2="360" class="scale-sep"/>
+          <g class="s1"><path/></g><g class="s2"><path/></g><g class="sg"><path/></g>
+        </svg>
+        <div class="scale-ctrl">
+          <button class="icon-btn" data-step="-1" aria-label="Réduire">−</button>
+          <input type="range" min="0" max="1000" step="1" aria-label="Taille du second pays">
+          <button class="icon-btn" data-step="1" aria-label="Agrandir">+</button>
+          <button class="btn primary scale-go">Valider</button>
+        </div>
+        <p class="scale-res" aria-live="polite"></p>
+        <p class="duel-help">Curseur, molette ou flèches ← → · Entrée pour valider</p>
+      </div>`;
+      const q = sel => st.querySelector(sel);
+      S.ui = { svg: q('.scale-svg'), g1: q('.s1'), g2: q('.s2'), gg: q('.sg'), range: q('input'), go: q('.scale-go'), res: q('.scale-res'), n1: q('.n1'), n2: q('.n2') };
+      S.ui.range.addEventListener('input', () => this.setT(+S.ui.range.value));
+      st.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => this.nudge(+b.dataset.step * 0.04)));
+      S.ui.svg.addEventListener('wheel', e => { e.preventDefault(); this.nudge(-Math.sign(e.deltaY) * 0.035); }, { passive: false });
+      S.ui.go.addEventListener('click', () => (S.revealed ? this.advance() : this.validate()));
+      this.round(0);
+    },
+    /** Paires de pays dont le rapport de surface reste lisible (entre 1,3 et 20) */
+    pick(n) {
+      const S = A.S, out = [], used = new Set();
+      for (let guard = 0; out.length < n && guard < 5000; guard++) {
+        const [a, b] = [S.items[(Math.random() * S.items.length) | 0], S.items[(Math.random() * S.items.length) | 0]];
+        if (a.id === b.id || used.has(a.id) || used.has(b.id)) continue;
+        const r = areaOf(b.id) / areaOf(a.id);
+        if (Math.max(r, 1 / r) < 1.3 || Math.max(r, 1 / r) > 20) continue;
+        used.add(a.id); used.add(b.id); out.push([a, b]);
+      }
+      return out;
+    },
+    round(i) {
+      const S = A.S, [c1, c2] = S.pairs[i], u = S.ui;
+      S.ri = i; S.revealed = false; S.busy = false;
+      u.n1.textContent = c1.n; u.n2.textContent = c2.n;
+      u.g1.firstChild.setAttribute('d', SHAPES[c1.id]);
+      u.g2.firstChild.setAttribute('d', SHAPES[c2.id]);
+      u.gg.firstChild.setAttribute('d', SHAPES[c2.id]);
+      u.gg.style.display = 'none';
+      u.g2.classList.remove('done');
+      // Échelle commune (km par pixel d'écran) : le plus grand des deux occupe la moitié de son cadre,
+      // pour laisser de la marge quand on agrandit le second pays
+      const s1 = SHAPE_KM[c1.id], s2 = SHAPE_KM[c2.id], m = Math.max(s1, s2) / 0.5;
+      S.k1 = s1 / m; S.k2 = s2 / m;
+      u.g1.setAttribute('transform', this.tf(200, S.k1));
+      u.gg.setAttribute('transform', this.tf(600, S.k2));
+      // Plage du curseur décalée au hasard : la bonne réponse n'est jamais au milieu
+      // …et jamais au-delà de sa moitié du cadre (taille affichée ≤ 1)
+      S.lo = -Math.log(3) - Math.random() * 0.6;
+      S.hi = Math.max(Math.log(1.8), Math.log((0.95 + Math.random() * 0.05) / S.k2));
+      let v; do { v = S.lo + Math.random() * (S.hi - S.lo); } while (Math.abs(v) < 0.3);
+      this.setV(v);
+      u.res.textContent = ''; u.res.className = 'scale-res';
+      u.go.textContent = 'Valider'; u.range.disabled = false;
+      A.setProgress(i / S.pairs.length);
+    },
+    tf: (cx, k) => `translate(${cx} 190) scale(${k}) translate(-200 -150)`,
+    setV(v) {
+      const S = A.S;
+      S.v = Math.max(S.lo, Math.min(S.hi, v));
+      S.ui.range.value = Math.round(1000 * (S.v - S.lo) / (S.hi - S.lo));
+      S.ui.g2.setAttribute('transform', this.tf(600, S.k2 * Math.exp(S.v)));
+    },
+    setT(t) { const S = A.S; if (!S.revealed && !S.paused) this.setV(S.lo + (t / 1000) * (S.hi - S.lo)); },
+    nudge(dv) { const S = A.S; if (!S.ended && !S.revealed && !S.paused) this.setV(S.v + dv); },
+    key(e) {
+      const S = A.S;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); this.nudge(-0.03); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); this.nudge(0.03); }
+      else if (e.key === 'Enter') { e.preventDefault(); S.revealed ? this.advance() : this.validate(); }
+    },
+    validate() {
+      const S = A.S;
+      if (S.ended || S.paused || S.revealed) return;
+      S.revealed = true;
+      const [c1, c2] = S.pairs[S.ri], u = S.ui;
+      const guess = Math.exp(2 * S.v); // rapport de surface : réponse / réalité
+      const pts = Math.max(0, Math.round(100 * (1 - Math.abs(Math.log(guess)) / Math.log(4))));
+      S.errs.push(Math.abs(Math.log(guess)));
+      u.gg.style.display = ''; u.g2.classList.add('done'); u.range.disabled = true;
+      const real = areaOf(c2.id) / areaOf(c1.id);
+      const off = guess >= 1 ? `${Math.round((guess - 1) * 100)} % trop grand` : `${Math.round((1 - guess) * 100)} % trop petit`;
+      const rel = real >= 1 ? `Taille réelle : ${c2.n} ≈ ${times(real)} ${c1.n}` : `Taille réelle : ${c1.n} ≈ ${times(1 / real)} ${c2.n}`;
+      u.res.innerHTML = `<b>+${pts} points</b> · ${Math.abs(Math.log(guess)) < 0.01 ? 'parfait' : esc(off)}<br><small>${esc(rel)} (territoire principal)</small>`;
+      u.res.className = 'scale-res on';
+      A.scored(pts > 0, pts);
+      A.setProgress((S.ri + 1) / S.pairs.length);
+      u.go.textContent = S.ri + 1 >= S.pairs.length ? 'Voir le résultat' : 'Suivant';
+      u.go.focus({ preventScroll: true });
+    },
+    advance() {
+      const S = A.S;
+      if (S.ended || S.paused) return;
+      if (S.ri + 1 >= S.pairs.length) return A.end('done');
+      this.round(S.ri + 1);
+    },
+    summary() {
+      const S = A.S, b = best();
+      const mean = S.errs.length ? Math.exp(S.errs.reduce((a, x) => a + x, 0) / S.errs.length) : null;
+      return {
+        small: `${S.score} / ${S.total} points`,
+        stats: [['Temps', fmt(S.elapsed)], ['Écart moyen', mean == null ? '—' : `${Math.round((mean - 1) * 100)} %`], ['Record', b ? `${b.score} pts` : '—']],
       };
     },
   });

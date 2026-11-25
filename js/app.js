@@ -12,6 +12,7 @@
     ['gameCards2', 'neighbors', 'Nomme tous les pays qui touchent celui affiché.'],
     ['gameCards2', 'bigger', 'Lequel est le plus grand, le plus au nord… ? Une erreur et c’est fini.'],
     ['gameCards2', 'path', 'Va d’un pays à l’autre en passant par des voisins.'],
+    ['gameCards2', 'scale', 'Redimensionne un pays à sa vraie taille, avec un autre pour seul repère.'],
   ];
   for (const [host, id, txt] of CARDS) {
     const G = GAMES[id];
@@ -25,6 +26,7 @@
   function show(id) {
     $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
     if (id === 'home') refreshHome();
+    if (id === 'atlas') Atlas.shown();
     window.scrollTo(0, 0);
   }
 
@@ -74,6 +76,7 @@
     $('#setup').hidden = false;
   }
   for (const id of ['gameCards', 'gameCards2']) $('#' + id).addEventListener('click', e => { const b = e.target.closest('[data-game]'); if (b) openSetup(b.dataset.game); });
+  $('#openAtlas').addEventListener('click', () => show('atlas'));
   $('#setup').addEventListener('click', e => { if (e.target.id === 'setup' || e.target.closest('[data-close]')) $('#setup').hidden = true; });
   addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#setup').hidden) $('#setup').hidden = true; });
 
