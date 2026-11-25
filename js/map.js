@@ -78,9 +78,14 @@
         const el = countries.append('path').attr('d', d).attr('class', 'country' + (this.inZone(f.id) ? '' : ' off')).node();
         el.__id = f.id; this.paths[f.id] = el;
       }
+      // Micro-États sans contour dans la carte légère : forme vide, remplie par les tracés détaillés au zoom
+      for (const c of COUNTRIES) if (!this.paths[c.id]) {
+        const el = countries.append('path').attr('d', '').attr('class', 'country' + (this.inZone(c.id) ? '' : ' off')).node();
+        el.__id = c.id; this.paths[c.id] = el; this._ld[c.id] = '';
+      }
 
       // Pastilles pour les micro-États (et pays sans tracé)
-      this.markers = {}; this.centroids = {};
+      this.markers = {}; this.centroids = {}; this._msz = {};
       const mk = g.append('g').attr('stroke-width', 1); this.mk = mk;
       for (const c of COUNTRIES) {
         const f = this.feats[c.id];
@@ -128,7 +133,7 @@
         .on('pointermove', e => this.hover(idOf(e), e))
         .on('pointerleave', () => this.hover(null));
 
-      this.zoom = d3.zoom().scaleExtent([1, 60]).translateExtent([[-W * .5, -H * .5], [W * 1.5, H * 1.5]])
+      this.zoom = d3.zoom().scaleExtent([1, 120]).translateExtent([[-W * .5, -H * .5], [W * 1.5, H * 1.5]])
         .on('start', () => { this.hover(null); this.cancelLOD(); })
         .on('zoom', e => {
           const k = e.transform.k, kChanged = k !== this.k;
@@ -137,15 +142,14 @@
           if (kChanged) {
             countries.attr('stroke-width', STROKE / k);
             mk.attr('stroke-width', 1 / k);
-            const r = this.r0 / Math.pow(k, .6);
-            for (const id in this.markers) this.markers[id].setAttribute('r', r);
+            this.sizeMarkers(k);
             this.fx.selectAll('text').attr('font-size', 14 / k).attr('stroke-width', 3 / k);
             this.fx.selectAll('circle[data-r]').attr('r', function () { return this.dataset.r / k; }).attr('stroke-width', 1.5 / k);
             this.fxLines.attr('stroke-width', 1.5 / k);
             if (this.onZoom) this.onZoom(k);
           }
         })
-        .on('end', e => { this.updateLOD(); if (this.onZoomEnd) this.onZoomEnd(e.transform.k); });
+        .on('end', e => { this.sizeMarkers(e.transform.k); this.updateLOD(); if (this.onZoomEnd) this.onZoomEnd(e.transform.k); });
       svg.call(this.zoom).on('dblclick.zoom', null);
       this.k = 1;
       for (const id in this.state) this.set(id, this.state[id]);
@@ -270,6 +274,32 @@
     }
   }
 
+  /* ---------- Pastilles des micro-États ----------
+     Taille constante à l'écran ; elles disparaissent dès que le vrai contour du pays est assez grand
+     pour être vu et touché, pour ne jamais le cacher. */
+  const MARKER_HIDE_PX = 14;
+  MapView.prototype.markerSize = function (id) {
+    // plus grande dimension du pays sur la carte (zoom ×1), d'après le tracé le plus précis disponible
+    if (this._msz[id] != null) return this._msz[id];
+    if (!HD && !this.feats[id]) return 0;
+    const f = (HD && HD[id]) || this.feats[id];
+    let size = 0;
+    if (f) { const b = this.path.bounds(f); if (isFinite(b[0][0])) size = Math.max(b[1][0] - b[0][0], b[1][1] - b[0][1]); }
+    // pays sans aucun contour (Vatican, Tuvalu) : la pastille reste toujours
+    if (HD) this._msz[id] = size; // valeur définitive une fois les tracés détaillés chargés
+    return size;
+  };
+  MapView.prototype.sizeMarkers = function (k) {
+    const r = this.r0 / k;
+    for (const id in this.markers) {
+      const el = this.markers[id], size = this.markerSize(id);
+      el.setAttribute('r', r);
+      el.style.display = size && size * k > MARKER_HIDE_PX ? 'none' : '';
+      // contour déjà visible sous la pastille : simple cercle vide pour ne pas le cacher
+      el.classList.toggle('ring', !!size && size * k > 3);
+    }
+  };
+
   /* ---------- Niveau de détail ----------
      Vue d'ensemble : tracés légers (1:50 M). En zoomant, seuls les pays visibles à l'écran passent
      sur les tracés détaillés (1:10 M), chargés à la première utilisation : la carte reste fluide. */
@@ -337,7 +367,9 @@
   MapView.prototype.lodOne = function (job, id) {
     const k = job.k, inView = job.inView;
     {
-      const lb = this._lb[id] || (this._lb[id] = this.path.bounds(this.feats[id]));
+      const src = this.feats[id] || HD[id];
+      if (!src) return; // Vatican, Tuvalu : aucun tracé, la pastille suffit
+      const lb = this._lb[id] || (this._lb[id] = this.path.bounds(src));
       let sig = '';
       if (HD[id] && inView(lb)) {
         // détail seulement pour les morceaux visibles ; les parties lointaines restent allégées

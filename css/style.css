@@ -185,6 +185,8 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .fx-dot.cap.bad { fill: var(--bg); stroke: var(--text); }
 .marker { fill: var(--land); stroke: #8a8a8a; }
 .marker.off, .no-markers .marker { display: none; }
+.marker.ring { fill: none; stroke: #9a9a9a; stroke-dasharray: 2 2; pointer-events: stroke; }
+.marker.ring.found, .marker.ring.good { stroke: var(--found); stroke-dasharray: none; }
 .float-label { font-family: var(--font); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; fill: var(--text); pointer-events: none; text-anchor: middle; }
 .map-ctrl { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; gap: 6px; z-index: 3; }
 .map-legend { position: absolute; left: 14px; top: 14px; z-index: 3; display: flex; flex-direction: column; gap: 2px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; padding: 10px 12px; font-size: .8rem; min-width: 190px; }
