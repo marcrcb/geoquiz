@@ -86,7 +86,7 @@ test('pause : chrono figé, plateau masqué, progression conservée', async ({ p
   expect(after - before).toBeLessThan(0.5); // le temps de pause n'est pas compté
 });
 
-test('pastilles : toujours pleines — fond clair si trouvé, fond sombre et contour clair sinon', async ({ browser }) => {
+test('pastilles : toujours pleines — fond clair si trouvé, gris des pays et contour clair sinon', async ({ browser }) => {
   const ctx = await browser.newContext({ colorScheme: 'dark', viewport: { width: 1366, height: 820 } });
   const page = await ctx.newPage();
   await home(page);
@@ -94,13 +94,13 @@ test('pastilles : toujours pleines — fond clair si trouvé, fond sombre et con
   await page.waitForFunction(() => typeof WORLD_HD !== 'undefined');
   for (const n of ['grenade', 'sainte-lucie', 'barbade', 'dominique']) await type(page, n);
   const look = id => page.evaluate(id => { const m = [...document.querySelectorAll('#mapSvg circle.marker')].find(e => e.__id === id); if (m.style.display === 'none') return 'masquée'; const cs = getComputedStyle(m); return `${cs.fill}|${cs.stroke}`; }, id);
-  const WHITE = 'rgb(242, 242, 242)', BLACK = 'rgb(10, 10, 10)';
+  const WHITE = 'rgb(242, 242, 242)', LAND = 'rgb(44, 44, 44)'; // gris foncé des pays non trouvés
   // zoom à mi-chemin sur les Petites Antilles
   const c = await page.evaluate(() => { const r = [...document.querySelectorAll('#mapSvg circle.marker')].find(e => e.__id === 'LCA').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
   await page.mouse.move(c[0], c[1]);
   for (let j = 0; j < 4; j++) { await page.mouse.wheel(0, -100); await page.waitForTimeout(60); }
   await page.waitForTimeout(900);
   for (const id of ['LCA', 'BRB']) expect(await look(id)).toBe(`${WHITE}|${WHITE}`);   // trouvés : fond blanc
-  expect(await look('KNA')).toBe(`${BLACK}|${WHITE}`);                                  // pas trouvé : fond noir, contour blanc
+  expect(await look('KNA')).toBe(`${LAND}|${WHITE}`);                                   // pas trouvé : gris des pays, contour blanc
   await ctx.close();
 });

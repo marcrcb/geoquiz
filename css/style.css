@@ -223,7 +223,7 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .fx-dot.cap { fill: var(--text); stroke: var(--bg); }
 .fx-dot.cap.ok { fill: var(--ok); }
 .fx-dot.cap.bad { fill: var(--bg); stroke: var(--text); }
-.marker { fill: var(--bg); stroke: var(--text); } /* disque toujours plein : fond sombre et contour clair tant qu'il n'est pas trouvé */
+.marker { fill: var(--land); stroke: var(--text); } /* disque toujours plein : couleur des pays non trouvés, contour clair */
 .marker.off, .no-markers .marker { display: none; }
 /* pastille trouvée : reste pleine même au survol */
 .interactive .marker.found:hover, .interactive .marker.good:hover { fill: var(--found); }
