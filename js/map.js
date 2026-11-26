@@ -286,7 +286,8 @@
   /* ---------- Pastilles des micro-États ----------
      Taille constante à l'écran ; elles disparaissent dès que le vrai contour du pays est assez grand
      pour être vu et touché, pour ne jamais le cacher. */
-  const MARKER_HIDE_PX = 14;
+  const MAX_K = 120;      // zoom maximal de la carte
+  const MIN_NO_SHAPE = 3; // rayon minimal (px) des pays sans aucun contour (Vatican, Tuvalu)
   MapView.prototype.markerSize = function (id) {
     // plus grande dimension du pays sur la carte (zoom ×1), d'après le tracé le plus précis disponible
     if (this._msz[id] != null) return this._msz[id];
@@ -298,12 +299,17 @@
     if (HD) this._msz[id] = size; // valeur définitive une fois les tracés détaillés chargés
     return size;
   };
+  /** Toujours affichées ; elles rétrécissent progressivement avec le zoom et disparaissent au zoom maximal,
+      où le vrai contour du pays prend le relais. */
   MapView.prototype.sizeMarkers = function (k) {
-    const r = this.r0 / k;
+    const f = Math.max(0, 1 - Math.log(k) / Math.log(MAX_K)); // 1 en vue d'ensemble → 0 au zoom maximal
     for (const id in this.markers) {
-      const el = this.markers[id], size = this.markerSize(id);
-      el.setAttribute('r', r);
-      el.style.display = size && size * k > MARKER_HIDE_PX ? 'none' : '';
+      const el = this.markers[id];
+      let rs = this.r0 * f; // rayon à l'écran (px)
+      if (!this.markerSize(id)) rs = Math.max(rs, MIN_NO_SHAPE);
+      el.setAttribute('r', rs / k);
+      el.setAttribute('stroke-width', Math.min(1.5, rs * .3) / k); // contour proportionné aux petites pastilles
+      el.style.display = rs < .6 ? 'none' : '';
     }
   };
 

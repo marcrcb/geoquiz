@@ -28,22 +28,27 @@ test('atlas : recherche, fiche, voisins, filtre par continent', async ({ page })
   expect(errors).toEqual([]);
 });
 
-test('carte : pastilles de taille fixe, masquées quand le pays est visible', async ({ page }) => {
+test('carte : pastilles toujours affichées, qui rétrécissent progressivement avec le zoom', async ({ page }) => {
   await home(page);
   await page.click('#openAtlas');
   await page.waitForFunction(() => typeof WORLD_HD !== 'undefined'); // tracés détaillés préchargés
   await page.fill('#atlasSearch', 'monaco'); await page.press('#atlasSearch', 'Enter');
   await page.click('#atlasPanel [data-close]');
-  const marker = () => page.evaluate(() => { const el = [...document.querySelectorAll('#atlasMap circle.marker')].find(e => e.__id === 'MCO'); return { w: el.getBoundingClientRect().width, hidden: el.style.display === 'none' }; });
-  const sizes = [];
-  for (let i = 0; i < 12 && !(await marker()).hidden; i++) {
-    const c = await page.evaluate(() => { const m = [...document.querySelectorAll('#atlasMap circle.marker')].find(e => e.__id === 'MCO'); const el = m.style.display === 'none' ? [...document.querySelectorAll('#atlasMap path.country')].find(e => e.__id === 'MCO') : m; const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  await page.click('[data-azoom=reset]'); await page.waitForTimeout(700);
+  const marker = id => page.evaluate(id => { const el = [...document.querySelectorAll('#atlasMap circle.marker')].find(e => e.__id === id); return el.style.display === 'none' ? 0 : el.getBoundingClientRect().width; }, id);
+  const zoomK = () => page.evaluate(() => d3.zoomTransform(document.querySelector('#atlasMap svg')).k);
+  const all = await page.evaluate(() => [...document.querySelectorAll('#atlasMap circle.marker')].filter(e => e.style.display !== 'none').length);
+  expect(all).toBeGreaterThan(40); // vue d'ensemble : toutes les pastilles sont là
+  const sizes = [await marker('MCO')];
+  for (let i = 0; i < 8; i++) {
+    const c = await page.evaluate(() => { const r = [...document.querySelectorAll('#atlasMap circle.marker')].find(e => e.__id === 'MCO').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
     await page.mouse.move(c[0], c[1]);
     for (let j = 0; j < 3; j++) { await page.mouse.wheel(0, -100); await page.waitForTimeout(60); }
-    await page.waitForTimeout(900);
-    const m = await marker(); if (!m.hidden) sizes.push(Math.round(m.w));
+    await page.waitForTimeout(700);
+    sizes.push(await marker('MCO'));
   }
-  expect(new Set(sizes).size).toBe(1); // même taille à tous les zooms
-  expect((await marker()).hidden).toBe(true); // Monaco assez grand : pastille retirée
-  expect(await page.evaluate(() => d3.zoomTransform(document.querySelector('#atlasMap svg')).k)).toBeLessThanOrEqual(120);
+  for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeLessThanOrEqual(sizes[i - 1] + 0.1); // jamais de grossissement
+  expect(sizes[sizes.length - 1]).toBeLessThan(sizes[0] * 0.6);                                    // nettement plus petite
+  expect(await zoomK()).toBeGreaterThan(10);
+  expect(await marker('VAT')).toBeGreaterThanOrEqual(5.9); // Vatican (aucun contour) : jamais sous 3 px de rayon
 });

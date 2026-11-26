@@ -71,7 +71,8 @@
     const order = sel ? [...labels.filter(l => l.id === sel), ...labels.filter(l => l.id !== sel)] : labels;
     for (const l of order) {
       // micro-État dont la pastille est affichée : le nom passe juste en dessous pour ne pas la cacher
-      const mk = map.markers[l.id], below = !!mk && mk.style.display !== 'none';
+      // nom décalé sous la pastille tant qu'elle est assez grande pour être cachée par le texte
+      const mk = map.markers[l.id], below = !!mk && mk.style.display !== 'none' && +mk.getAttribute('r') * k > 2.5;
       l.el.setAttribute('dy', below ? '1.35em' : '0');
       const hw = (l.w / 2 + 3) / k, hh = 8 / k, y = l.y + (below ? 16 / k : 0);
       const on = l.id === sel || (inFilter(l) && k >= l.kMin && fits(l.x - hw, y - hh, l.x + hw, y + hh));
