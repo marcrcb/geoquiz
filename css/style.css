@@ -39,7 +39,7 @@
   --hero-grat: #161616;
   --done: #5a5a5a;
   /* teintes pastel des continents (luminance et saturation par thème, teinte par continent) */
-  --ct-l: 80%; --ct-c: .11; --dot-l: 76%; --dot-c: .15;
+  --ct-l: 80%; --ct-c: .11; --dot-l: 76%; --dot-c: .15; --cf-l: 80%; --cf-c: .11;
   /* Pays mystère : loin (bleu) → proche (rouge) */
   --cold: oklch(72% .13 250); --hot: oklch(62% .21 28);
   --radius: 10px;
@@ -55,7 +55,7 @@
   --land: #d2d2d2; --land-hover: #b9b9b9; --land-off: #e9e9e9; --found: #111111; --ok: #6e6e6e;
   --focus: #8a8a8a; --wrong: #8f8f8f; --sphere: #f4f4f4; --sphere-line: #d8d8d8; --grat: #e8e8e8; --decor: #e4e4e4;
   --hatch: #4a4a4a; --marker-line: #6b6b6b; --label: #2a2a2a; --hero-land: #e6e6e6; --hero-grat: #efefef; --done: #b3b3b3;
-  --ct-l: 80%; --ct-c: .11; --dot-l: 62%; --dot-c: .16;
+  --ct-l: 80%; --ct-c: .11; --dot-l: 62%; --dot-c: .16; --cf-l: 70%; --cf-c: .14; /* trouvé : plus soutenu, pour ressortir sur le gris clair */
   --cold: oklch(72% .13 250); --hot: oklch(62% .21 28);
   color-scheme: light;
  } }
@@ -67,7 +67,7 @@
   --land: #d2d2d2; --land-hover: #b9b9b9; --land-off: #e9e9e9; --found: #111111; --ok: #6e6e6e;
   --focus: #8a8a8a; --wrong: #8f8f8f; --sphere: #f4f4f4; --sphere-line: #d8d8d8; --grat: #e8e8e8; --decor: #e4e4e4;
   --hatch: #4a4a4a; --marker-line: #6b6b6b; --label: #2a2a2a; --hero-land: #e6e6e6; --hero-grat: #efefef; --done: #b3b3b3;
-  --ct-l: 80%; --ct-c: .11; --dot-l: 62%; --dot-c: .16;
+  --ct-l: 80%; --ct-c: .11; --dot-l: 62%; --dot-c: .16; --cf-l: 70%; --cf-c: .14; /* trouvé : plus soutenu, pour ressortir sur le gris clair */
   --cold: oklch(72% .13 250); --hot: oklch(62% .21 28);
   color-scheme: light;
  }
@@ -221,7 +221,8 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .ct-NA, #setupZones [data-v=NA], #atlasFilter [data-z=NA] { --h: 150; --dl: 4%; }
 .ct-SA, #setupZones [data-v=SA], #atlasFilter [data-z=SA] { --h: 320; }
 .ct-OC, #setupZones [data-v=OC], #atlasFilter [data-z=OC] { --h: 195; --dl: 6%; }
-.country.ct, .marker.ct { fill: oklch(calc(var(--ct-l) + var(--dl, 0%)) var(--ct-c) var(--h)); }
+/* atlas : tous les pays teintés ; jeux : gris tant que le pays n'est pas trouvé, couleur du continent une fois trouvé */
+#atlasMap .country.ct, #atlasMap .marker.ct { fill: oklch(calc(var(--ct-l) + var(--dl, 0%)) var(--ct-c) var(--h)); }
 #setupZones [data-v]:not([data-v=ALL])::before, #atlasFilter [data-z]:not([data-z=ALL])::before {
   content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px;
   background: oklch(var(--dot-l) var(--dot-c) var(--h));
@@ -250,6 +251,8 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .marker.off, .no-markers .marker { display: none; }
 /* pastille trouvée : reste pleine même au survol */
 .interactive .marker.found:hover, .interactive .marker.good:hover { fill: var(--found); }
+.country.ct.found, .marker.ct.found, .country.ct.good, .marker.ct.good,
+.interactive .marker.ct.found:hover, .interactive .marker.ct.good:hover { fill: oklch(calc(var(--cf-l) + var(--dl, 0%) / 2) var(--cf-c) var(--h)); }
 .float-label { font-family: var(--font); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; fill: var(--text); pointer-events: none; text-anchor: middle; }
 .map-ctrl { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; gap: 6px; z-index: 3; }
 .map-legend { position: absolute; left: 14px; top: 14px; z-index: 3; display: flex; flex-direction: column; gap: 2px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; padding: 10px 12px; font-size: .8rem; min-width: 190px; }
