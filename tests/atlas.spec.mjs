@@ -52,3 +52,22 @@ test('carte : pastilles toujours affichées, qui rétrécissent progressivement 
   expect(await zoomK()).toBeGreaterThan(10);
   expect(await marker('VAT')).toBeGreaterThanOrEqual(5.9); // Vatican (aucun contour) : jamais sous 3 px de rayon
 });
+
+test('atlas : noms visibles dès la vue d’ensemble, sans chevauchement, le plus grand pays prioritaire', async ({ page }) => {
+  await home(page);
+  await page.click('#openAtlas');
+  await page.waitForTimeout(800);
+  const r = await page.evaluate(() => {
+    const vis = [...document.querySelectorAll('.atlas-label')].filter(e => !e.classList.contains('hide'));
+    const boxes = vis.map(e => e.getBoundingClientRect());
+    let overlaps = 0;
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      if (a.left < b.right - 2 && b.left < a.right - 2 && a.top < b.bottom - 2 && b.top < a.bottom - 2) overlaps++;
+    }
+    return { n: vis.length, overlaps, names: vis.map(e => e.textContent) };
+  });
+  expect(r.n).toBeGreaterThan(50);
+  expect(r.overlaps).toBe(0);
+  for (const n of ['Russie', 'Canada', 'Chine', 'Brésil', 'Australie', 'Maldives']) expect(r.names).toContain(n);
+});

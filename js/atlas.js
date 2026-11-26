@@ -41,7 +41,8 @@
       const kMin = Math.max(1, (c.n.length * CHAR) / Math.max(w * 1.25, 1));
       const t = labelG.append('text').attr('class', 'atlas-label').attr('x', pt[0]).attr('y', pt[1]).text(c.n).node();
       t.__id = c.id;
-      labels.push({ el: t, id: c.id, cont: c.c, x: pt[0], y: pt[1], w: c.n.length * CHAR, area: c.area, kMin: map.markers[c.id] ? Math.max(kMin, 5) : kMin });
+      // nom affiché dès la vue d'ensemble : seule la superposition le masque (le plus grand pays est prioritaire)
+      labels.push({ el: t, id: c.id, cont: c.c, x: pt[0], y: pt[1], w: c.n.length * CHAR, area: c.area, kMin: 1 });
       const q = map.proj([c.capLL[1], c.capLL[0]]);
       if (!q) continue;
       const dot = capG.append('circle').attr('cx', q[0]).attr('cy', q[1]).node();
@@ -49,7 +50,11 @@
       caps.push({ dot, el: ct, id: c.id, cont: c.c, x: q[0], y: q[1], w: c.cap.length * CHAR * .9, kMin: Math.max(2.5, kMin * 1.6) });
     }
     labels.sort((a, b) => b.area - a.area); // les grands pays d'abord
-    scaleLayers(k); visibility(k);
+    scaleLayers(k);
+    // largeur réelle des textes (px à l'écran), plutôt qu'une estimation par nombre de lettres
+    for (const l of labels) { const w = l.el.getComputedTextLength() * k; if (w > 0) l.w = w; }
+    for (const c of caps) { const w = c.el.getComputedTextLength() * k; if (w > 0) c.w = w; }
+    visibility(k);
     if (sel) map.set(sel, 'focus');
     if (filter !== 'ALL') applyFilter(filter, false);
   }
