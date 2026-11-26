@@ -34,6 +34,61 @@ test('chemin : validé dès que la jonction avec l’arrivée est faite', async 
   expect(await state(page, () => Game.state.optimal)).toBe(1);
 });
 
+test('chemin : pays bloqués refusés, détour obligatoire, plus court chemin recalculé', async ({ page }) => {
+  const errors = await home(page);
+  await startGame(page, 'path', { zone: 'ALL', opt: { rounds: '10' } });
+  const routes = await state(page, () => Game.state.routes);
+  expect(routes.length).toBe(10);
+  for (const r of routes) {
+    expect(r.blocked.length).toBeGreaterThanOrEqual(1);
+    expect(r.best.length - 1).toBeGreaterThanOrEqual(3);
+    for (const id of r.blocked) expect(r.best).not.toContain(id);       // le chemin optimal évite les pays bloqués
+  }
+  const r = routes[0];
+  await expect(page.locator('.mp-sub .chip-n.block')).toHaveCount(r.blocked.length);
+  expect(await state(page, ids => ids.every(id => [...document.querySelectorAll('#mapSvg path.country')].find(e => e.__id === id)?.classList.contains('blocked')), r.blocked)).toBe(true);
+  // un pays bloqué voisin du départ est refusé
+  const nb = await state(page, ({ a, bl }) => bl.find(id => COUNTRIES.find(c => c.id === a).nb.includes(id)), { a: r.a, bl: r.blocked });
+  if (nb) { await type(page, await nameOf(page, nb)); await page.press('#answer', 'Enter'); expect(await state(page, () => Game.state.chain.length)).toBe(1); }
+  for (const id of r.best.slice(1, -1)) await type(page, await nameOf(page, id), 1300);
+  await expect(page.locator('#gScore')).toHaveText('1');
+  expect(await state(page, () => Game.state.optimal)).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('pays mystère : nouveau pays à chaque partie, couleur selon la distance, victoire', async ({ page }) => {
+  const errors = await home(page);
+  const targets = new Set();
+  for (let i = 0; i < 4; i++) {
+    await startGame(page, 'mystery', { zone: 'ALL' });
+    targets.add(await state(page, () => Game.state.target));
+  }
+  expect(targets.size).toBeGreaterThan(1);
+  await page.evaluate(() => { Game.state.target = 'FRA'; });
+  await type(page, 'Japon'); await type(page, 'Allemagne'); await type(page, 'Italie');
+  const g = await state(page, () => Game.state.guesses);
+  expect(g.map(x => x.id)).toEqual(['JPN', 'DEU', 'ITA']);
+  expect(g[1].d).toBe(0);                                  // frontalier
+  expect(g[0].d).toBeGreaterThan(8000);
+  const fill = id => page.evaluate(id => [...document.querySelectorAll('#mapSvg path.country')].find(e => e.__id === id).style.fill, id);
+  expect(await fill('JPN')).toContain('color-mix');
+  expect(await fill('JPN')).not.toBe(await fill('DEU'));
+  await expect(page.locator('.mys-row').first()).toContainText('Allemagne');
+  await type(page, 'Japon'); await page.press('#answer', 'Enter');
+  expect((await state(page, () => Game.state.guesses)).length).toBe(3); // déjà proposé : ignoré
+  await page.click('#hintBtn');
+  await expect(page.locator('#mapPanel small')).toContainText('Europe');
+  // pas de frontière terrestre avec le Royaume-Uni : distance mesurée par-dessus la Manche
+  await type(page, 'Royaume-Uni');
+  const uk = (await state(page, () => Game.state.guesses))[3].d;
+  expect(uk).toBeGreaterThan(20); expect(uk).toBeLessThan(80);
+  await type(page, 'France');
+  await expect(page.locator('#results')).toBeVisible();
+  await expect(page.locator('#rPct')).toHaveText('5');
+  await expect(page.locator('#rCount')).toContainText('France');
+  expect(errors).toEqual([]);
+});
+
 test('à l’échelle : taille libre, note sur 100', async ({ page }) => {
   await home(page);
   await startGame(page, 'scale', { opt: { rounds: '5' } });

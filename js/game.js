@@ -60,20 +60,18 @@
     },
     path: {
       title: 'Chemin', num: '07', desc: 'Relie deux pays en passant par des voisins.',
-      modes: [{ id: 'route', name: 'Relier deux pays', desc: 'Tape une suite de pays voisins pour aller du départ à l’arrivée, en un minimum d’étapes.', custom: 'path' }],
+      modes: [{ id: 'route', name: 'Relier deux pays', desc: 'Tape une suite de pays voisins pour aller du départ à l’arrivée, en un minimum d’étapes. Des pays sont bloqués : il faut les contourner.', custom: 'path' }],
       zones: ['ALL', 'EU', 'AF', 'AS', 'NA', 'SA'],
       options: [{ id: 'rounds', label: 'Trajets', choices: [['5', '5'], ['10', '10']] }],
       placeholder: 'Pays suivant…',
     },
-    physique: {
-      title: 'Géographie physique', num: '08', desc: 'Fleuves, montagnes et déserts : situe-les sur la carte ou retrouve leur nom.',
-      modes: [
-        { id: 'locate', name: 'Situer', desc: 'Un repère est donné : clique dessus sur la carte. 3 essais.', sec: 10, custom: 'physLocate' },
-        { id: 'name', name: 'Nommer', desc: 'Un repère est surligné sur la carte : tape son nom, avec indices.', sec: 12, custom: 'physName' },
-      ],
-      options: [{ id: 'cat', label: 'Repères', choices: [['all', 'Tous'], ['f', 'Fleuves'], ['m', 'Montagnes'], ['d', 'Déserts']] }],
-      placeholder: 'Nom du repère…',
-      note: 'Données Natural Earth : 78 fleuves, 63 chaînes de montagnes et 26 déserts, noms en français.',
+    mystery: {
+      title: 'Pays mystère', num: '08', desc: 'Un pays est caché : chaque pays proposé s’éclaire selon sa distance.',
+      modes: [{ id: 'guess', name: 'Trouver le pays', desc: 'Propose des pays : plus un pays est proche du mystère, plus il s’éclaire sur la carte. Un nouveau pays à chaque partie.', custom: 'mystery' }],
+      timers: ['free', 'timed'],
+      bestText: () => { const n = store.get('mys:ALL', 0); return n ? `Record monde : ${n} essai${n > 1 ? 's' : ''}` : ''; },
+      placeholder: 'Propose un pays…',
+      note: 'Distance mesurée entre les frontières les plus proches ; les pays frontaliers sont à 0 km. Les propositions peuvent venir du monde entier.',
     },
     scale: {
       title: 'À l’échelle', num: '06', desc: 'Deux pays : donne au second sa vraie taille, avec le premier comme seul repère.',

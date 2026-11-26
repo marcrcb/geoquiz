@@ -60,7 +60,12 @@
       const svg = d3.select(host).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('class', 'interactive' + (this.showMarkers ? '' : ' no-markers'));
       this.svg = svg;
       // Hachures pour les pays manqués
-      svg.append('defs').append('pattern').attr('id', 'hatch').attr('patternUnits', 'userSpaceOnUse')
+      const defs = svg.append('defs');
+      // Quadrillage pour les pays bloqués (jeu Chemin)
+      defs.append('pattern').attr('id', 'block').attr('patternUnits', 'userSpaceOnUse')
+        .attr('width', 6).attr('height', 6).attr('patternTransform', 'rotate(45)')
+        .call(p => { p.append('rect').attr('width', 6).attr('height', 6).style('fill', 'var(--land-off)'); p.append('rect').attr('width', 1).attr('height', 6).style('fill', 'var(--dim)'); p.append('rect').attr('width', 6).attr('height', 1).style('fill', 'var(--dim)'); });
+      defs.append('pattern').attr('id', 'hatch').attr('patternUnits', 'userSpaceOnUse')
         .attr('width', 4).attr('height', 4).attr('patternTransform', 'rotate(45)')
         .call(p => { p.append('rect').attr('width', 4).attr('height', 4).style('fill', 'var(--land)'); p.append('rect').attr('width', 1.4).attr('height', 4).style('fill', 'var(--hatch)'); });
 
@@ -182,7 +187,7 @@
       this.state[id] = st;
       for (const el of [this.paths[id], this.markers[id]]) {
         if (!el) continue;
-        el.classList.remove('found', 'good', 'ok', 'bad', 'missed', 'target', 'focus');
+        el.classList.remove('found', 'good', 'ok', 'bad', 'missed', 'target', 'focus', 'blocked');
         if (st) el.classList.add(st);
       }
     }

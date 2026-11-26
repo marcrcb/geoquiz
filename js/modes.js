@@ -192,11 +192,12 @@
     for (const id of ids) adj[id] = byId[id].nb.filter(n => ids.has(n));
     return adj;
   }
-  function bfs(adj, from) {
+  /** Parcours en largeur ; `blocked` : pays infranchissables */
+  function bfs(adj, from, blocked) {
     const dist = { [from]: 0 }, prev = {}, q = [from];
     while (q.length) {
       const u = q.shift();
-      for (const v of adj[u]) if (!(v in dist)) { dist[v] = dist[u] + 1; prev[v] = u; q.push(v); }
+      for (const v of adj[u]) if (!(v in dist) && !(blocked && blocked.has(v))) { dist[v] = dist[u] + 1; prev[v] = u; q.push(v); }
     }
     return { dist, prev };
   }
@@ -217,51 +218,69 @@
       A.el.mapPanel.hidden = false;
       this.round(0);
     },
-    /** Trajets au hasard dont le plus court passe par 2 à 4 pays intermédiaires */
+    /** Trajets au hasard, de 4 à 7 frontières, avec 1 à 3 pays bloqués sur le chemin direct :
+        il faut les contourner (le détour reste raisonnable, et il en existe toujours un). */
     pickRoutes(n) {
       const S = A.S, nodes = Object.keys(S.adj).filter(id => S.adj[id].length), out = [], used = new Set();
-      for (let guard = 0; out.length < n && guard < 3000; guard++) {
+      for (let guard = 0; out.length < n && guard < 5000; guard++) {
+        // petites régions : trajets plus courts, puis sans pays bloqué s'il n'existe aucun détour (Amérique centrale)
+        const lo = guard < 2500 ? 4 : 3, needBlock = guard < 4000;
         const a = nodes[(Math.random() * nodes.length) | 0];
         const { dist, prev } = bfs(S.adj, a);
-        const far = Object.keys(dist).filter(id => dist[id] >= 3 && dist[id] <= 5);
+        const far = Object.keys(dist).filter(id => dist[id] >= lo && dist[id] <= 7);
         if (!far.length) continue;
         const b = far[(Math.random() * far.length) | 0];
         const k = [a, b].sort().join();
         if (used.has(k)) continue;
+        const direct = pathTo(prev, a, b), want = 1 + (Math.random() < .5) + (direct.length > 6 && Math.random() < .4);
+        const blocked = new Set();
+        let best = direct;
+        for (let i = 0; i < want; i++) {
+          // bloque un pays du chemin le plus court actuel, si un détour pas trop long existe
+          const cands = A.shuffle(best.slice(1, -1));
+          let ok = false;
+          for (const c of cands) {
+            const bl = new Set([...blocked, c]), r = bfs(S.adj, a, bl);
+            if (!(b in r.dist) || r.dist[b] > direct.length - 1 + 4) continue;
+            blocked.add(c); best = pathTo(r.prev, a, b); ok = true; break;
+          }
+          if (!ok) break;
+        }
+        if (!blocked.size && needBlock) continue;
         used.add(k);
-        out.push({ a, b, best: pathTo(prev, a, b) });
+        out.push({ a, b, best, blocked: [...blocked] });
       }
       return out;
     },
     round(i) {
       const S = A.S, m = A.map;
-      if (S.route) for (const id of new Set([...S.chain, ...S.route.best])) m.set(id, '');
+      if (S.route) for (const id of new Set([...S.chain, ...S.route.best, ...S.route.blocked])) m.set(id, '');
       S.ri = i; S.route = S.routes[i]; S.chain = [S.route.a]; S.busy = false; S.revealed = false;
-      m.clearFx();
-      m.set(S.route.a, 'focus'); m.set(S.route.b, 'focus');
-      m.tag(S.route.a, byId[S.route.a].n); m.tag(S.route.b, byId[S.route.b].n);
-      m.zoomToIds(S.route.best);
+      this.redraw();
       this.panel();
     },
     redraw() {
-      const S = A.S, m = A.map;
-      m.set(S.route.a, 'focus'); m.set(S.route.b, 'focus');
-      for (const id of S.chain.slice(1)) m.set(id, 'found');
-      for (const id of new Set([S.route.a, S.route.b, ...S.chain])) m.tag(id, byId[id].n);
-      m.zoomToIds(S.route.best);
+      const S = A.S, m = A.map, r = S.route;
+      m.clearFx();
+      m.set(r.a, 'focus'); m.set(r.b, 'focus');
+      for (const id of r.blocked) m.set(id, 'blocked');
+      for (const id of S.chain.slice(1)) if (id !== r.b) m.set(id, 'found');
+      for (const id of new Set([r.a, r.b, ...S.chain])) m.tag(id, byId[id].n);
+      m.zoomToIds([...r.best, ...r.blocked]);
     },
     panel() {
       const S = A.S, r = S.route;
       const steps = S.chain.length - 1, minMid = r.best.length - 2;
       const chain = [...S.chain.map(id => `<span class="chip-n on">${esc(byId[id].n)}</span>`), S.chain[S.chain.length - 1] === r.b ? '' : `<span class="chip-n">…</span><span class="chip-n goal">${esc(byId[r.b].n)}</span>`].join('<i>→</i>');
-      A.el.mapPanel.innerHTML = `<div class="mp-head"><div><small>Trajet ${S.ri + 1} / ${S.routes.length} · le plus court passe par ${minMid} pays</small><strong>${esc(byId[r.a].n)} → ${esc(byId[r.b].n)}</strong></div><span class="mp-count">${steps} étape${steps > 1 ? 's' : ''}</span></div><div class="mp-chips path">${chain}</div>`;
+      const blocked = r.blocked.map(id => `<span class="chip-n block">${esc(byId[id].n)}</span>`).join('');
+      A.el.mapPanel.innerHTML = `<div class="mp-head"><div><small>Trajet ${S.ri + 1} / ${S.routes.length} · le plus court passe par ${minMid} pays</small><strong>${esc(byId[r.a].n)} → ${esc(byId[r.b].n)}</strong></div><span class="mp-count">${steps} étape${steps > 1 ? 's' : ''}</span></div><div class="mp-chips path">${chain}</div>${blocked ? `<div class="mp-sub">Bloqué${r.blocked.length > 1 ? 's' : ''} : ${blocked}</div>` : ''}`;
       A.el.input.placeholder = 'Pays suivant…';
     },
     input(force) {
       const S = A.S;
       if (S.busy) return;
       const endId = S.chain[S.chain.length - 1];
-      const open = S.adj[endId].filter(id => !S.chain.includes(id));
+      const open = S.adj[endId].filter(id => !S.chain.includes(id) && !S.route.blocked.includes(id));
       const { k, hit, wait } = matchAmong(open, force);
       if (wait) return;
       if (hit) {
@@ -270,6 +289,7 @@
         A.map.label(hit, byId[hit].n);
         // Jonction faite : le pays tapé touche l'arrivée, pas besoin de taper l'arrivée elle-même
         if (hit !== S.route.b && S.adj[hit].includes(S.route.b)) S.chain.push(S.route.b);
+        if (S.chain[S.chain.length - 1] !== S.route.b) A.map.zoomToIds([...S.route.best, ...S.route.blocked, ...S.chain]);
         this.panel();
         if (S.chain[S.chain.length - 1] === S.route.b) this.arrived();
         return;
@@ -278,7 +298,8 @@
         A.shakeBox();
         const o = anyCountry(k), e = byId[endId];
         if (!o) return;
-        if (S.chain.includes(o.id)) A.toast(o, `${o.n} : déjà dans le trajet`);
+        if (S.route.blocked.includes(o.id)) A.toast(o, `${o.n} est bloqué : contourne-le`);
+        else if (S.chain.includes(o.id)) A.toast(o, `${o.n} : déjà dans le trajet`);
         else if (e.nb.includes(o.id)) A.toast(o, `${o.n} : hors de la région choisie`);
         else A.toast(o, `Pas de frontière : ${o.n} / ${e.n}`);
       }
@@ -515,193 +536,134 @@
   });
 
   /* =====================================================================
-     Géographie physique : fleuves, montagnes, déserts — situer ou nommer
+     Pays mystère : chaque proposition se colore selon sa distance au pays caché
      ===================================================================== */
-  // nom, démonstratif et interrogatif accordés (« cette montagne », « Quel est ce fleuve ? »)
-  const KIND = { f: { n: 'fleuve', ce: 'ce', q: 'Quel est ce' }, m: { n: 'montagne', ce: 'cette', q: 'Quelle est cette' }, d: { n: 'désert', ce: 'ce', q: 'Quel est ce' } };
-  const PHYS = (window.PHYSIQUE || []).map((x, i) => ({ ...x, id: 'P' + i }));
-  /** Réponses acceptées : nom, variantes, et forme courte sans « désert du », « monts », « (Espagne) »… */
-  function physKeys(x) {
-    const short = s => s.replace(/\s*\(.*\)$/, '')
-      .replace(/^(désert|grand désert|monts?|montagnes|massif|chaîne|cordillère|hauts plateaux|plateau|massif)\s+(de la |de l’|de l'|des |du |de |d’|d')?/i, '');
-    return [...new Set([x.n, ...x.alt, short(x.n), ...x.alt.map(short)].map(A.key).filter(Boolean))];
-  }
-  const physItems = cfg => PHYS.filter(x => (cfg.zone === 'ALL' || x.c === cfg.zone) && (!cfg.cat || cfg.cat === 'all' || x.t === cfg.cat));
-  /** Point où écrire le nom : milieu du plus long tronçon (fleuve) ou centre (région) */
-  function physLabelPoint(x) {
-    if (x.t !== 'f') return d3.geoCentroid(x.g);
-    const line = x.g.coordinates.reduce((a, b) => (b.length > a.length ? b : a));
-    return line[line.length >> 1];
-  }
-  /** Calque des repères dans la carte (un tracé par repère, masqué tant qu'il n'est pas révélé) */
-  function physLayer(m) {
-    const S = A.S;
-    const g = m.g.append('g').attr('class', 'phys-layer');
-    m.fxLines.raise(); m.fx.raise();
-    S.physEl = {};
-    for (const x of S.items) {
-      const el = g.append('path').attr('d', m.path(x.g)).attr('class', 'phys ' + (x.t === 'f' ? 'river' : 'area')).style('display', 'none').node();
-      el.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'title')).textContent = x.n;
-      S.physEl[x.id] = el;
+  /** Sommets d'un pays en vecteurs unitaires 3D (calcul rapide des distances à la surface du globe) */
+  const VEC = {};
+  function vecOf(id) {
+    if (VEC[id]) return VEC[id];
+    const f = A.map && A.map.feats[id], pts = [];
+    const add = ([lon, lat]) => { const l = lon * Math.PI / 180, p = lat * Math.PI / 180; pts.push(Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)); };
+    if (f && f.geometry) {
+      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+      for (const poly of polys) for (const ring of poly) for (const q of ring) add(q);
     }
-    // états déjà connus (après un redimensionnement)
-    for (const id in S.physSt || {}) physShow(id, S.physSt[id]);
+    if (!pts.length) add(ll(byId[id])); // pays sans contour (Vatican, Tuvalu) : la capitale
+    return (VEC[id] = new Float64Array(pts));
   }
-  function physShow(id, st) {
-    const S = A.S, el = S.physEl[id];
-    (S.physSt ||= {})[id] = st;
-    if (!el) return;
-    el.style.display = st ? '' : 'none';
-    el.classList.remove('target', 'good', 'ok', 'bad', 'missed');
-    if (st && st !== 'shown') el.classList.add(st);
-  }
-  function physZoom(x, maxK = 12) {
-    const [[w, s], [e, n]] = d3.geoBounds(x.g);
-    A.map.zoomToIds([], [[w, s], [e, n], [w, n], [e, s]], maxK);
-  }
-  /** Distance (px à l'écran) entre un point de la carte et le repère ; 0 si le point est dans la région */
-  function physDist(x, ll) {
-    const m = A.map, k = d3.zoomTransform(m.svg.node()).k, q = m.proj(ll);
-    if (!q) return Infinity;
-    if (x.t !== 'f' && d3.geoContains(x.g, ll)) return 0;
-    x._px ||= {};
-    const pts = x._px[`${m.zone}:${m.W}:${m.H}`] ||= (x.t === 'f' ? x.g.coordinates : x.g.coordinates.flat()).map(l => l.map(p => m.proj(p)).filter(Boolean));
-    let best = Infinity;
-    for (const l of pts) for (let i = 1; i < l.length; i++) {
-      const [ax, ay] = l[i - 1], [bx, by] = l[i], dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
-      const t = L ? Math.max(0, Math.min(1, ((q[0] - ax) * dx + (q[1] - ay) * dy) / L)) : 0;
-      best = Math.min(best, Math.hypot(q[0] - ax - t * dx, q[1] - ay - t * dy));
+  /** Plus courte distance (km) entre les frontières de deux pays ; 0 s'ils se touchent */
+  function borderKm(a, b) {
+    if (a === b || byId[a].nb.includes(b)) return 0;
+    const A3 = vecOf(a), B3 = vecOf(b);
+    let best = -2;
+    for (let i = 0; i < A3.length; i += 3) {
+      const x = A3[i], y = A3[i + 1], z = A3[i + 2];
+      for (let j = 0; j < B3.length; j += 3) { const d = x * B3[j] + y * B3[j + 1] + z * B3[j + 2]; if (d > best) best = d; }
     }
-    return best * k;
+    return Math.acos(Math.min(1, best)) * 6371;
   }
-  function physReview() {
-    const S = A.S;
-    A.map.clearFx();
-    for (const x of S.items) {
-      const r = S.res[x.id];
-      physShow(x.id, r === 'good' || r === 'ok' ? 'good' : 'missed');
-    }
-  }
-  const physSummary = () => {
-    const S = A.S, b = best();
-    return { small: `${S.score} / ${S.total} repères`, stats: [['Temps', fmt(S.elapsed)], ['Meilleure série', String(S.bestStreak)], ['Record', b ? `${b.score}/${b.total}` : '—']] };
-  };
+  /** Teinte d'une proposition : couleur des pays au loin, presque celle des pays trouvés tout près */
+  const heat = d => Math.round(8 + 77 * (1 - Math.min(d, 12000) / 12000) ** 2);
+  const heatFill = d => `color-mix(in srgb, var(--found) ${heat(d)}%, var(--land))`;
+  const kmTxt = d => (d === 0 ? 'frontalier' : `${nf.format(d < 100 ? Math.round(d) : Math.round(d / 10) * 10)} km`);
 
-  // --- Situer : cliquer sur le repère demandé (3 essais) ---
-  register('physLocate', {
-    items: physItems,
+  register('mystery', {
+    items: cfg => zoneItems(cfg.zone),
+    count: () => 1,
+    secPer: () => 300,
+    noReview: true,
     start() {
       const S = A.S;
-      S.seq = A.shuffle(S.items);
-      const m = A.newMap({ zone: S.cfg.zone, onPoint: p => this.click(p), markers: false });
-      physLayer(m);
-      A.el.form.hidden = true;
-      this.next();
-    },
-    redraw() { physLayer(A.map); },
-    next() {
-      const S = A.S;
-      S.cur = S.seq.find(x => !S.res[x.id]); S.tries = 0; S.busy = false;
-      if (!S.cur) return A.end('done');
-      A.map.clearFx();
-      A.ask(null, `Situe ${KIND[S.cur.t].ce} ${KIND[S.cur.t].n}`, S.cur.n, { flag: false, tries: true });
-      document.querySelector('#askTries').innerHTML = '<i></i><i></i><i></i>';
-    },
-    click(ll) {
-      const S = A.S, x = S.cur;
-      if (!S || S.ended || S.paused || S.busy || !x) return;
-      // tolérance : 14 px à l'écran pour un fleuve, 10 px autour d'une région
-      if (physDist(x, ll) <= (x.t === 'f' ? 14 : 10)) {
-        const r = S.tries ? 'ok' : 'good';
-        S.res[x.id] = r; S.busy = true;
-        physShow(x.id, r); A.map.text(physLabelPoint(x), x.n);
-        A.scored(true);
-        A.later(() => { physShow(x.id, ''); this.next(); }, 1300);
-      } else {
-        S.tries++;
-        document.querySelectorAll('#askTries i').forEach((d, i) => d.classList.toggle('used', i < S.tries));
-        A.map.dot(ll, 'guess', 4);
-        A.shakeBox();
-        if (S.tries >= 3) this.reveal();
-      }
-    },
-    reveal() {
-      const S = A.S, x = S.cur;
-      S.busy = true; S.res[x.id] = 'bad';
-      A.scored(false);
-      physShow(x.id, 'target'); A.map.text(physLabelPoint(x), x.n);
-      const before = d3.zoomTransform(A.map.svg.node());
-      physZoom(x, 5);
-      A.later(() => {
-        physShow(x.id, '');
-        A.map.svg.transition().duration(600).call(A.map.zoom.transform, before);
-        A.later(() => this.next(), 450);
-      }, 2000);
-    },
-    skip() { const S = A.S; if (!S.busy && S.cur) this.reveal(); },
-    finish() { physReview(); },
-    summary: physSummary,
-  });
-
-  // --- Nommer : un repère est surligné, taper son nom ---
-  register('physName', {
-    items: physItems,
-    progressByScore: false,
-    start() {
-      const S = A.S;
-      S.seq = A.shuffle(S.items);
-      S.keys = new Map(S.items.map(x => [x.id, physKeys(x)]));
-      const m = A.newMap({ zone: S.cfg.zone, markers: false });
-      physLayer(m);
-      A.el.hint.hidden = false; A.el.skip.hidden = false;
+      S.target = S.items[(Math.random() * S.items.length) | 0].id;
+      S.guesses = []; S.hints = 0; S.won = false;
+      A.setTotal(1);
+      A.newMap();
+      A.el.hint.hidden = false;
       A.el.mapPanel.hidden = false;
-      this.next();
-    },
-    redraw() { physLayer(A.map); if (A.S.cur) physZoom(A.S.cur); },
-    next() {
-      const S = A.S;
-      if (S.cur && S.physSt && S.physSt[S.cur.id]) physShow(S.cur.id, '');
-      S.cur = S.seq.find(x => !S.res[x.id]); S.hints = 0; S.busy = false;
-      if (!S.cur) return A.end('done');
-      A.map.clearFx();
-      physShow(S.cur.id, 'target');
-      physZoom(S.cur);
-      A.el.input.value = '';
-      A.el.input.placeholder = `Nom de ${KIND[S.cur.t].ce} ${KIND[S.cur.t].n}…`;
+      A.el.input.placeholder = 'Propose un pays…';
       this.panel();
     },
-    panel(reveal) {
-      const S = A.S, x = S.cur, n = S.seq.length, i = n - S.seq.filter(y => !S.res[y.id]).length + (reveal ? 0 : 1);
-      let hint = '';
-      if (S.hints) { let shown = 0; hint = [...x.n].map(ch => (/\p{L}|\d/u.test(ch) ? (shown++ < S.hints ? ch : '_') : ch)).join(''); }
-      A.el.mapPanel.innerHTML = `<div class="mp-head"><div><small>${KIND[x.t].n[0].toUpperCase() + KIND[x.t].n.slice(1)} ${Math.min(i, n)} / ${n}</small><strong>${reveal ? esc(x.n) : KIND[x.t].q + ' ' + KIND[x.t].n + ' ?'}</strong></div></div>${hint && !reveal ? `<div class="mp-hint">${esc(hint)}</div>` : ''}`;
+    paint(id, d) {
+      for (const el of [A.map.paths[id], A.map.markers[id]]) if (el) el.style.fill = d == null ? '' : heatFill(d);
+    },
+    redraw() {
+      const S = A.S, m = A.map;
+      m.clearFx();
+      for (const g of S.guesses) { if (g.id === S.target) m.set(g.id, 'found'); else this.paint(g.id, g.d); m.tag(g.id, byId[g.id].n); }
+    },
+    panel() {
+      const S = A.S, z = S.cfg.zone, n = S.guesses.length;
+      const list = [...S.guesses].sort((a, b) => a.d - b.d).slice(0, 6);
+      const rows = list.map(g => `<span class="mys-row${g.id === S.target ? ' win' : ''}"><i style="background:${g.id === S.target ? 'var(--found)' : heatFill(g.d)}"></i>${esc(byId[g.id].n)}<b>${g.id === S.target ? 'trouvé' : kmTxt(g.d)}</b></span>`).join('');
+      const t = byId[S.target], hints = [];
+      if (S.hints >= 1) hints.push(Game.ZONE_NAME[t.c]);
+      if (S.hints >= 2) hints.push(`commence par « ${t.n[0]} »`);
+      const flag = S.hints >= 3 ? `<img src="flags/thumb/${t.a2}.webp" alt="">` : '';
+      const head = S.won ? esc(t.n) : n ? `Le plus proche : ${esc(byId[list[0].id].n)}` : 'Quel est le pays mystère ?';
+      A.el.mapPanel.innerHTML = `<div class="mp-head">${flag}<div><small>${z === 'ALL' ? 'Un pays du monde' : 'Un pays · ' + Game.ZONE_NAME[z]}${hints.length ? ' · ' + esc(hints.join(' · ')) : ''}</small><strong>${head}</strong></div><span class="mp-count">${n} essai${n > 1 ? 's' : ''}</span></div>`
+        + (n ? `<div class="mys-list">${rows}</div>` : '<div class="mp-sub">Propose un pays : plus il est proche du pays mystère, plus il s’éclaire sur la carte.</div>')
+        + '<div class="mys-scale"><span>loin</span><i></i><span>proche</span></div>';
     },
     input(force) {
       const S = A.S;
-      if (S.busy || !S.cur) return;
-      const k = A.key(A.el.input.value);
-      if (k && S.keys.get(S.cur.id).includes(k)) return this.result(S.hints ? 'ok' : 'good');
-      if (force && k) A.shakeBox();
-    },
-    result(r) {
-      const S = A.S, x = S.cur;
-      S.busy = true; S.res[x.id] = r;
-      physShow(x.id, r === 'bad' ? 'missed' : r);
-      A.map.text(physLabelPoint(x), x.n);
-      A.el.input.value = '';
-      A.scored(r !== 'bad');
-      this.panel(true);
-      A.later(() => this.next(), r === 'bad' ? 1700 : 1000);
+      if (S.won) return;
+      const open = COUNTRIES.map(c => c.id).filter(id => !S.guesses.some(g => g.id === id));
+      const { k, hit, wait } = matchAmong(open, force);
+      if (wait) return;
+      if (hit) {
+        A.el.input.value = '';
+        const d = borderKm(hit, S.target), m = A.map;
+        S.guesses.push({ id: hit, d });
+        m.tag(hit, byId[hit].n);
+        if (hit === S.target) {
+          S.won = true;
+          m.set(hit, 'found');
+          A.scored(true);
+          m.zoomToIds([hit]);
+          A.toast(byId[hit], `Trouvé en ${S.guesses.length} essai${S.guesses.length > 1 ? 's' : ''}`);
+          this.panel();
+          A.later(() => A.end('done'), 1600);
+          return;
+        }
+        this.paint(hit, d);
+        A.toast(byId[hit], `${byId[hit].n} : ${kmTxt(d)}`);
+        this.panel();
+        return;
+      }
+      if (force && k) {
+        A.shakeBox();
+        const o = anyCountry(k);
+        if (o) A.toast(o, `${o.n} : déjà proposé`);
+      }
     },
     hint() {
       const S = A.S;
-      if (!S.cur || S.busy) return;
-      const letters = [...S.cur.n].filter(ch => /\p{L}|\d/u.test(ch)).length;
-      if (S.hints < letters - 1) { S.hints++; this.panel(); }
-      A.el.input.focus();
+      if (S.won || S.hints >= 3) return;
+      S.hints++; this.panel();
+      if (S.hints >= 3) A.el.hint.hidden = true;
+      A.el.input.focus({ preventScroll: true });
     },
-    skip() { if (!A.S.busy && A.S.cur) this.result('bad'); },
-    finish() { physReview(); A.el.mapPanel.hidden = true; },
-    summary: physSummary,
+    finish() {
+      const S = A.S;
+      if (S.won) return;
+      const t = S.target;
+      A.map.set(t, 'target'); A.map.tag(t, byId[t].n);
+      A.map.zoomToIds([t]);
+      S.revealed = true;
+    },
+    summary(elapsed) {
+      const S = A.S, n = S.guesses.length, t = byId[S.target], rk = 'mys:' + S.cfg.zone;
+      let rec = store.get(rk, 0), isRec = false;
+      if (S.won && (!rec || n < rec)) { store.set(rk, n); rec = n; isRec = true; }
+      const titles = [[1, 'Du premier coup.'], [3, 'Excellent.'], [6, 'Très bien.'], [10, 'Bien.'], [20, 'Trouvé.'], [Infinity, 'Trouvé, enfin.']];
+      return {
+        big: S.won ? String(n) : '—',
+        small: S.won ? `essai${n > 1 ? 's' : ''} · ${t.n}` : `C’était : ${t.n}`,
+        frac: null,
+        title: S.won ? titles.find(([m]) => n <= m)[1] : 'Pays non trouvé.',
+        msg: S.won ? (isRec && n > 1 ? 'Nouveau record d’essais' : 'Pays mystère trouvé') : (S.cfg.timer === 'timed' && elapsed >= S.limit ? 'Temps écoulé' : 'Partie abandonnée'),
+        stats: [['Temps', fmt(elapsed)], ['Essais', String(n)], ['Record', rec ? `${rec} essai${rec > 1 ? 's' : ''}` : '—']],
+      };
+    },
   });
 })();
