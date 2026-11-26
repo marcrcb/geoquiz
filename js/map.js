@@ -294,19 +294,27 @@
     if (!HD && !this.feats[id]) return 0;
     const f = (HD && HD[id]) || this.feats[id];
     let size = 0;
-    if (f) { const b = this.path.bounds(f); if (isFinite(b[0][0])) size = Math.max(b[1][0] - b[0][0], b[1][1] - b[0][1]); }
+    // taille de la plus grande île (un archipel dispersé comme Kiribati n'est pas « grand » pour autant)
+    if (f && f.geometry) {
+      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+      let best = -1;
+      for (const c of polys) {
+        const g = { type: 'Polygon', coordinates: c }, a = this.path.area(g);
+        if (a > best) { best = a; const b = this.path.bounds(g); if (isFinite(b[0][0])) size = Math.max(b[1][0] - b[0][0], b[1][1] - b[0][1]); }
+      }
+    }
     // pays sans aucun contour (Vatican, Tuvalu) : la pastille reste toujours
     if (HD) this._msz[id] = size; // valeur définitive une fois les tracés détaillés chargés
     return size;
   };
-  /** Toujours affichées ; elles rétrécissent progressivement avec le zoom et disparaissent au zoom maximal,
-      où le vrai contour du pays prend le relais. */
+  /** Pastille pleine tant que l'île est trop petite pour être vue ; dès que l'île apparaît à l'écran
+      (3 px), la pastille rétrécit progressivement et disparaît quand l'île atteint 12 px. */
+  const ISLAND_SHOWS = 3, ISLAND_SEEN = 12;
   MapView.prototype.sizeMarkers = function (k) {
-    const f = Math.max(0, 1 - Math.log(k) / Math.log(MAX_K)); // 1 en vue d'ensemble → 0 au zoom maximal
     for (const id in this.markers) {
-      const el = this.markers[id];
-      let rs = this.r0 * f; // rayon à l'écran (px)
-      if (!this.markerSize(id)) rs = Math.max(rs, MIN_NO_SHAPE);
+      const el = this.markers[id], size = this.markerSize(id);
+      // rayon à l'écran (px) ; pays sans aucun contour (Vatican, Tuvalu) : jamais sous 3 px
+      let rs = size ? this.r0 * Math.max(0, Math.min(1, (ISLAND_SEEN - size * k) / (ISLAND_SEEN - ISLAND_SHOWS))) : Math.max(MIN_NO_SHAPE, this.r0 * Math.max(0, 1 - Math.log(k) / Math.log(MAX_K)));
       el.setAttribute('r', rs / k);
       el.setAttribute('stroke-width', Math.min(1.5, rs * .3) / k); // contour proportionné aux petites pastilles
       el.style.display = rs < .6 ? 'none' : '';

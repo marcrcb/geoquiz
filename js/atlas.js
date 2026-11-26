@@ -39,10 +39,12 @@
       const b = map.mainBounds(c.id);
       const w = b && !map.markers[c.id] ? Math.min(b[1][0] - b[0][0], (b[1][1] - b[0][1]) * 2.2) : 3;
       const kMin = Math.max(1, (c.n.length * CHAR) / Math.max(w * 1.25, 1));
-      const t = labelG.append('text').attr('class', 'atlas-label').attr('x', pt[0]).attr('y', pt[1]).text(c.n).node();
-      t.__id = c.id;
-      // nom affiché dès la vue d'ensemble : seule la superposition le masque (le plus grand pays est prioritaire)
-      labels.push({ el: t, id: c.id, cont: c.c, x: pt[0], y: pt[1], w: c.n.length * CHAR, area: c.area, kMin: 1 });
+      const t = labelG.append('text').attr('class', 'atlas-label').attr('x', pt[0]).attr('y', pt[1]).node();
+      t.__id = c.id; t.setAttribute('data-name', c.n);
+      t.textContent = c.n;
+      // nom affiché dès la vue d'ensemble : seule la superposition le masque (le plus grand pays est prioritaire).
+      // Noms longs : une ligne si elle tient, sinon deux lignes (moitié moins larges).
+      labels.push({ el: t, lines: splitName(c.n), two: false, id: c.id, cont: c.c, x: pt[0], y: pt[1], w: c.n.length * CHAR, w2: 0, area: c.area, kMin: 1 });
       const q = map.proj([c.capLL[1], c.capLL[0]]);
       if (!q) continue;
       const dot = capG.append('circle').attr('cx', q[0]).attr('cy', q[1]).node();
@@ -52,7 +54,10 @@
     labels.sort((a, b) => b.area - a.area); // les grands pays d'abord
     scaleLayers(k);
     // largeur réelle des textes (px à l'écran), plutôt qu'une estimation par nombre de lettres
-    for (const l of labels) { const w = l.el.getComputedTextLength() * k; if (w > 0) l.w = w; }
+    for (const l of labels) {
+      const w = l.el.getBBox().width * k; if (w > 0) l.w = w;
+      if (l.lines.length > 1) { setLines(l, true); l.w2 = l.el.getBBox().width * k || l.w / 2; setLines(l, false); }
+    }
     for (const c of caps) { const w = c.el.getComputedTextLength() * k; if (w > 0) c.w = w; }
     visibility(k);
     if (sel) map.set(sel, 'focus');
@@ -78,10 +83,22 @@
       // micro-État dont la pastille est affichée : le nom passe juste en dessous pour ne pas la cacher
       // nom décalé sous la pastille tant qu'elle est assez grande pour être cachée par le texte
       const mk = map.markers[l.id], below = !!mk && mk.style.display !== 'none' && +mk.getAttribute('r') * k > 2.5;
-      l.el.setAttribute('dy', below ? '1.35em' : '0');
-      const hw = (l.w / 2 + 3) / k, hh = 8 / k, y = l.y + (below ? 16 / k : 0);
-      const on = l.id === sel || (inFilter(l) && k >= l.kMin && fits(l.x - hw, y - hh, l.x + hw, y + hh));
-      if (on) placed.push([l.x - hw, y - hh, l.x + hw, y + hh]);
+      // essais : une ligne, puis deux lignes pour les noms longs ; le premier qui ne chevauche rien l'emporte
+      const tries = l.lines.length > 1 ? [false, true] : [false];
+      let chosen = null;
+      for (const two of tries) {
+        const hw = ((two ? l.w2 : l.w) / 2 + 3) / k, hh = ((two ? 27 : 13.5) / 2 + 1.5) / k;
+        const y = l.y + (below ? (two ? 23 : 16) / k : 0), box = [l.x - hw, y - hh, l.x + hw, y + hh];
+        if (fits(...box)) { chosen = { two, box }; break; }
+        if (l.id === sel && two === tries[tries.length - 1]) chosen = { two, box }; // pays sélectionné : toujours nommé
+      }
+      const on = !!chosen && (l.id === sel || (inFilter(l) && k >= l.kMin));
+      if (on) {
+        placed.push(chosen.box);
+        if (chosen.two !== l.two) setLines(l, chosen.two);
+        if (l.two) l.el.firstChild.setAttribute('dy', below ? '1.35em' : '-0.55em'); // bloc de deux lignes centré ou sous la pastille
+        else l.el.setAttribute('dy', below ? '1.35em' : '0');
+      }
       l.el.classList.toggle('hide', !on);
     }
     for (const c of caps) {
@@ -89,8 +106,29 @@
       const on = inFilter(c) && k >= c.kMin && fits(c.x - hw, top, c.x + hw, c.y);
       if (on) placed.push([c.x - hw, top, c.x + hw, c.y]);
       c.el.classList.toggle('hide', !on);
-      c.dot.classList.toggle('hide', k < 1.6 || !inFilter(c));
+      const mk = map.markers[c.id], mkOn = !!mk && mk.style.display !== 'none' && +mk.getAttribute('r') * k > 1;
+      c.dot.classList.toggle('hide', k < 1.6 || !inFilter(c) || mkOn); // pas de confusion avec la pastille du pays
     }
+  }
+
+  /** Passe une étiquette en une ou deux lignes */
+  function setLines(l, two) {
+    const t = l.el;
+    t.textContent = ''; t.removeAttribute('dy');
+    if (!two) t.textContent = t.dataset.name;
+    else {
+      d3.select(t).append('tspan').attr('x', l.x).attr('dy', '-0.55em').text(l.lines[0]);
+      d3.select(t).append('tspan').attr('x', l.x).attr('dy', '1.1em').text(l.lines[1]);
+    }
+    l.two = two;
+  }
+  /** Coupe un nom long en deux lignes au tiret ou à l'espace le plus proche du milieu */
+  function splitName(n) {
+    if (n.length <= 15) return [n];
+    let best = -1;
+    for (let i = 1; i < n.length - 1; i++) if ((n[i] === '-' || n[i] === ' ') && (best < 0 || Math.abs(i - n.length / 2) < Math.abs(best - n.length / 2))) best = i;
+    if (best < 0) return [n];
+    return n[best] === '-' ? [n.slice(0, best + 1), n.slice(best + 1)] : [n.slice(0, best), n.slice(best + 1)];
   }
 
   /* ---------- Filtre par continent ---------- */
