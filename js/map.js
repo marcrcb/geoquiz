@@ -66,10 +66,10 @@
       // identifiants préfixés par la carte : l'atlas et le jeu ont chacun les leurs (sinon Safari/Firefox
       // prennent ceux de la carte masquée et le pays reste sans remplissage)
       const pid = (host.id || 'map') + '-';
-      // quadrillage fin (maille de 4 px à l'écran, quel que soit le zoom : voir 'zoom')
+      // quadrillage fin (maille de 5,5 px à l'écran, quel que soit le zoom : voir 'zoom')
       this.blockPat = defs.append('pattern').attr('id', pid + 'block').attr('patternUnits', 'userSpaceOnUse')
-        .attr('width', 4).attr('height', 4).attr('patternTransform', 'rotate(45)')
-        .call(p => { p.append('rect').attr('width', 4).attr('height', 4).style('fill', 'var(--land)'); p.append('rect').attr('width', .8).attr('height', 4).style('fill', 'var(--hatch)'); p.append('rect').attr('width', 4).attr('height', .8).style('fill', 'var(--hatch)'); });
+        .attr('width', 5.5).attr('height', 5.5).attr('patternTransform', 'rotate(45)')
+        .call(p => { p.append('rect').attr('width', 5.5).attr('height', 5.5).style('fill', 'var(--land)'); p.append('rect').attr('width', 1).attr('height', 5.5).style('fill', 'var(--hatch)'); p.append('rect').attr('width', 5.5).attr('height', 1).style('fill', 'var(--hatch)'); });
       defs.append('pattern').attr('id', pid + 'hatch').attr('patternUnits', 'userSpaceOnUse')
         .attr('width', 4).attr('height', 4).attr('patternTransform', 'rotate(45)')
         .call(p => { p.append('rect').attr('width', 4).attr('height', 4).style('fill', 'var(--land)'); p.append('rect').attr('width', 1.4).attr('height', 4).style('fill', 'var(--hatch)'); });
