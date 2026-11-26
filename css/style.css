@@ -231,14 +231,14 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .interactive .country:not(.off):hover, .interactive .marker:not(.off):hover { fill: var(--land-hover); }
 .country.found, .marker.found, .country.good, .marker.good { fill: var(--found); }
 .country.ok, .marker.ok { fill: var(--ok); }
-.country.bad, .marker.bad, .country.missed, .marker.missed { fill: url(#hatch); }
+.country.bad, .marker.bad, .country.missed, .marker.missed { fill: url(#mapSvg-hatch); }
 .country.target, .marker.target { animation: blink .5s steps(1) infinite; }
 @keyframes blink { 50% { fill: var(--found); } }
 .country.wrong-flash, .marker.wrong-flash { fill: var(--wrong); }
 .country.hl, .marker.hl { stroke: var(--text); }
 .country.focus, .marker.focus { fill: var(--focus); }
-.country.blocked, .marker.blocked { fill: url(#block); }
-.interactive .country.blocked:hover { fill: url(#block); }
+.country.blocked, .marker.blocked { fill: url(#mapSvg-block); } /* quadrillage sur le gris des pays */
+.interactive .country.blocked:hover { fill: url(#mapSvg-block); }
 .marker.blocked { fill: var(--land-off); stroke-dasharray: 2 2; }
 .fx-line { fill: none; stroke: var(--text); stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
 .fx-line.bad { stroke: var(--focus); }
