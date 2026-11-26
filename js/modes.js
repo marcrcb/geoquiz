@@ -218,13 +218,17 @@
       A.el.mapPanel.hidden = false;
       this.round(0);
     },
-    /** Trajets au hasard, de 4 à 7 frontières, avec 1 à 3 pays bloqués sur le chemin direct :
-        il faut les contourner (le détour reste raisonnable, et il en existe toujours un). */
+    /** Trajets au hasard, de 4 à 7 frontières, avec 3 à 5 pays bloqués. Les grands pays aux nombreuses
+        frontières sont bloqués en priorité, d'abord sur le plus court chemin (détour obligatoire), puis
+        juste à côté (le détour lui-même se complique). Il existe toujours un chemin. */
     pickRoutes(n) {
       const S = A.S, nodes = Object.keys(S.adj).filter(id => S.adj[id].length), out = [], used = new Set();
+      // poids d'un pays : nombre de frontières + taille, avec un peu de hasard
+      const weight = id => (S.adj[id].length + 1.5 * Math.max(0, Math.log10(byId[id].area / 1e4))) * (0.7 + Math.random() * 0.6);
+      const byWeight = ids => ids.map(id => [id, weight(id)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
       for (let guard = 0; out.length < n && guard < 5000; guard++) {
-        // petites régions : trajets plus courts, puis sans pays bloqué s'il n'existe aucun détour (Amérique centrale)
-        const lo = guard < 2500 ? 4 : 3, needBlock = guard < 4000;
+        // petites régions : trajets plus courts, puis moins de pays bloqués s'il n'y a pas assez de détours (Amérique centrale)
+        const lo = guard < 2500 ? 4 : 3, minBlock = guard < 4000 ? 3 : 0;
         const a = nodes[(Math.random() * nodes.length) | 0];
         const { dist, prev } = bfs(S.adj, a);
         const far = Object.keys(dist).filter(id => dist[id] >= lo && dist[id] <= 7);
@@ -232,21 +236,21 @@
         const b = far[(Math.random() * far.length) | 0];
         const k = [a, b].sort().join();
         if (used.has(k)) continue;
-        const direct = pathTo(prev, a, b), want = 1 + (Math.random() < .5) + (direct.length > 6 && Math.random() < .4);
+        const direct = pathTo(prev, a, b), want = 3 + ((Math.random() * 3) | 0), maxLen = direct.length - 1 + 7;
         const blocked = new Set();
         let best = direct;
-        for (let i = 0; i < want; i++) {
-          // bloque un pays du chemin le plus court actuel, si un détour pas trop long existe
-          const cands = A.shuffle(best.slice(1, -1));
+        while (blocked.size < want) {
+          const onPath = best.slice(1, -1);
+          const near = [...new Set(best.flatMap(id => S.adj[id]))].filter(id => id !== a && id !== b && !best.includes(id) && !blocked.has(id));
           let ok = false;
-          for (const c of cands) {
+          for (const c of [...byWeight(onPath), ...byWeight(near)]) {
             const bl = new Set([...blocked, c]), r = bfs(S.adj, a, bl);
-            if (!(b in r.dist) || r.dist[b] > direct.length - 1 + 4) continue;
+            if (!(b in r.dist) || r.dist[b] > maxLen) continue;
             blocked.add(c); best = pathTo(r.prev, a, b); ok = true; break;
           }
           if (!ok) break;
         }
-        if (!blocked.size && needBlock) continue;
+        if (blocked.size < minBlock) continue;
         used.add(k);
         out.push({ a, b, best, blocked: [...blocked] });
       }

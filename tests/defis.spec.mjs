@@ -40,7 +40,8 @@ test('chemin : pays bloqués refusés, détour obligatoire, plus court chemin re
   const routes = await state(page, () => Game.state.routes);
   expect(routes.length).toBe(10);
   for (const r of routes) {
-    expect(r.blocked.length).toBeGreaterThanOrEqual(1);
+    expect(r.blocked.length).toBeGreaterThanOrEqual(3);
+    expect(r.blocked.length).toBeLessThanOrEqual(5);
     expect(r.best.length - 1).toBeGreaterThanOrEqual(3);
     for (const id of r.blocked) expect(r.best).not.toContain(id);       // le chemin optimal évite les pays bloqués
   }

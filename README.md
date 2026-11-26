@@ -12,7 +12,7 @@ Application web **100 % hors ligne** (PWA) pour apprendre la géographie, prête
 | 04 **Silhouettes** | **Un par un** ou **Toutes les silhouettes** : reconnaître un pays à sa forme (164 pays ; micro-États et archipels trop dispersés exclus) |
 | 05 **Pays voisins** | Un pays s’affiche : nommer tous ceux qui partagent une frontière terrestre avec lui (10, 25 ou tous les pays) |
 | 06 **À l’échelle** | Deux silhouettes à la même échelle, posées côte à côte : le 1er pays sert de repère fixe, on agrandit ou rétrécit librement le 2e (glisser, pincer, molette, flèches, boutons) puis on valide. Chaque manche est notée sur 100 (100 si exact, 50 si la surface est 2 fois trop grande ou trop petite, 0 au-delà de 4 fois) ; 5 ou 10 manches
-| 07 **Chemin** | Relier deux pays par une suite de voisins, en un minimum d’étapes : trajets de 4 à 7 frontières, avec 1 à 3 pays bloqués (quadrillés sur la carte) qu’il faut contourner. Bouton Retour, trajet optimal révélé si on passe |
+| 07 **Chemin** | Relier deux pays par une suite de voisins, en un minimum d’étapes : trajets de 4 à 7 frontières, avec 3 à 5 pays bloqués (quadrillés sur la carte), choisis en priorité parmi les grands pays aux nombreuses frontières, qu’il faut contourner. Bouton Retour, trajet optimal révélé si on passe |
 | 08 **Pays mystère** | Un pays est tiré au hasard à chaque partie : on propose des pays, chacun s’éclaire sur la carte selon sa distance au pays caché (distance entre les frontières les plus proches, affichée en km). Indices : continent, première lettre, drapeau. Record du plus petit nombre d’essais |
 
 ### Atlas

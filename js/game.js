@@ -60,7 +60,7 @@
     },
     path: {
       title: 'Chemin', num: '07', desc: 'Relie deux pays en passant par des voisins.',
-      modes: [{ id: 'route', name: 'Relier deux pays', desc: 'Tape une suite de pays voisins pour aller du départ à l’arrivée, en un minimum d’étapes. Des pays sont bloqués : il faut les contourner.', custom: 'path' }],
+      modes: [{ id: 'route', name: 'Relier deux pays', desc: 'Tape une suite de pays voisins pour aller du départ à l’arrivée, en un minimum d’étapes. 3 à 5 pays sont bloqués : il faut les contourner.', custom: 'path' }],
       zones: ['ALL', 'EU', 'AF', 'AS', 'NA', 'SA'],
       options: [{ id: 'rounds', label: 'Trajets', choices: [['5', '5'], ['10', '10']] }],
       placeholder: 'Pays suivant…',
