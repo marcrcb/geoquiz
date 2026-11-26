@@ -223,11 +223,9 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.02em; }
 .fx-dot.cap { fill: var(--text); stroke: var(--bg); }
 .fx-dot.cap.ok { fill: var(--ok); }
 .fx-dot.cap.bad { fill: var(--bg); stroke: var(--text); }
-.marker { fill: var(--land); stroke: var(--marker-line); }
+.marker { fill: var(--bg); stroke: var(--text); } /* disque toujours plein : fond sombre et contour clair tant qu'il n'est pas trouvé */
 .marker.off, .no-markers .marker { display: none; }
-.marker.ring { fill: none; stroke: var(--marker-line); stroke-dasharray: 2 2; pointer-events: stroke; }
-/* pastille d'un pays joué : disque plein bien détouré, même au survol */
-.marker.found, .marker.good, .marker.ok, .marker.bad, .marker.missed, .marker.target, .marker.focus { stroke: var(--bg); }
+/* pastille trouvée : reste pleine même au survol */
 .interactive .marker.found:hover, .interactive .marker.good:hover { fill: var(--found); }
 .float-label { font-family: var(--font); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; fill: var(--text); pointer-events: none; text-anchor: middle; }
 .map-ctrl { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; gap: 6px; z-index: 3; }

@@ -86,7 +86,7 @@
 
       // Pastilles pour les micro-États (et pays sans tracé)
       this.markers = {}; this.centroids = {}; this._msz = {};
-      const mk = g.append('g').attr('stroke-width', 1); this.mk = mk;
+      const mk = g.append('g').attr('stroke-width', 1.5); this.mk = mk; // contour de 1,5 px à l'écran
       for (const c of COUNTRIES) {
         const f = this.feats[c.id];
         let pt, tiny = !f;
@@ -141,7 +141,7 @@
           g.attr('transform', e.transform);
           if (kChanged) {
             countries.attr('stroke-width', STROKE / k);
-            mk.attr('stroke-width', 1 / k);
+            mk.attr('stroke-width', 1.5 / k);
             this.sizeMarkers(k);
             this.fx.selectAll('text').attr('font-size', 14 / k).attr('stroke-width', 3 / k);
             this.fx.selectAll('circle[data-r]').attr('r', function () { return this.dataset.r / k; }).attr('stroke-width', 1.5 / k);
@@ -185,7 +185,6 @@
         el.classList.remove('found', 'good', 'ok', 'bad', 'missed', 'target', 'focus');
         if (st) el.classList.add(st);
       }
-      if (this.markers[id]) this.ringMarker(id);
     }
     flashWrong(id) {
       for (const el of [this.paths[id], this.markers[id]]) {
@@ -305,15 +304,7 @@
       const el = this.markers[id], size = this.markerSize(id);
       el.setAttribute('r', r);
       el.style.display = size && size * k > MARKER_HIDE_PX ? 'none' : '';
-      this.ringMarker(id, k);
     }
-  };
-  /** Pays pas encore joué dont le contour apparaît sous la pastille : cercle vide pour ne pas le cacher.
-      Pays trouvé, manqué ou demandé : la pastille reste un disque plein, à la couleur de son état. */
-  MapView.prototype.ringMarker = function (id, k = this.k) {
-    const el = this.markers[id]; if (!el) return;
-    const size = this.markerSize(id);
-    el.classList.toggle('ring', !this.state[id] && !!size && size * k > 3);
   };
 
   /* ---------- Niveau de détail ----------
