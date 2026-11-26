@@ -33,7 +33,8 @@
   }
 
   class MapView {
-    constructor(host, { zone = 'ALL', inZone = () => true, onClick, onPoint, markers = true, tip, onZoom, onZoomEnd, onBuild }) {
+    constructor(host, { zone = 'ALL', inZone = () => true, onClick, onPoint, markers = true, continents = true, tip, onZoom, onZoomEnd, onBuild }) {
+      this.continents = continents;
       this.host = host; this.zone = zone; this.inZone = inZone; this.onClick = onClick; this.onPoint = onPoint; this.showMarkers = markers;
       this.onZoom = onZoom; this.onZoomEnd = onZoomEnd; this.onBuild = onBuild;
       this.byId = Object.fromEntries(COUNTRIES.map(c => [c.id, c]));
@@ -80,12 +81,12 @@
       const countries = g.append('g').attr('stroke-width', STROKE); this.countriesG = countries;
       for (const f of feats) {
         const d = path(f); this._ld[f.id] = d;
-        const el = countries.append('path').attr('d', d).attr('class', 'country' + (this.inZone(f.id) ? '' : ' off')).node();
+        const el = countries.append('path').attr('d', d).attr('class', 'country' + this.ctClass(f.id)).node();
         el.__id = f.id; this.paths[f.id] = el;
       }
       // Micro-États sans contour dans la carte légère : forme vide, remplie par les tracés détaillés au zoom
       for (const c of COUNTRIES) if (!this.paths[c.id]) {
-        const el = countries.append('path').attr('d', '').attr('class', 'country' + (this.inZone(c.id) ? '' : ' off')).node();
+        const el = countries.append('path').attr('d', '').attr('class', 'country' + this.ctClass(c.id)).node();
         el.__id = c.id; this.paths[c.id] = el; this._ld[c.id] = '';
       }
 
@@ -114,7 +115,7 @@
         if (!pt || !isFinite(pt[0])) continue;
         this.centroids[c.id] = pt;
         if (tiny) {
-          const el = mk.append('circle').attr('class', 'marker' + (this.inZone(c.id) ? '' : ' off'))
+          const el = mk.append('circle').attr('class', 'marker' + this.ctClass(c.id))
             .attr('cx', pt[0]).attr('cy', pt[1]).attr('r', this.r0).node();
           el.__id = c.id; this.markers[c.id] = el;
         }
@@ -182,6 +183,12 @@
       this.svg.transition().duration(700).call(this.zoom.transform, t);
     }
 
+    /** Classes de base : hors zone, ou teinte du continent */
+    ctClass(id) {
+      if (!this.inZone(id)) return ' off';
+      const c = this.byId[id];
+      return this.continents && c ? ` ct ct-${c.c}` : '';
+    }
     /** état : '', 'found', 'good', 'ok', 'bad', 'missed', 'target' */
     set(id, st) {
       this.state[id] = st;

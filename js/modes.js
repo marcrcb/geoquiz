@@ -566,9 +566,9 @@
     }
     return Math.acos(Math.min(1, best)) * 6371;
   }
-  /** Teinte d'une proposition : couleur des pays au loin, presque celle des pays trouvés tout près */
-  const heat = d => Math.round(8 + 77 * (1 - Math.min(d, 12000) / 12000) ** 2);
-  const heatFill = d => `color-mix(in srgb, var(--found) ${heat(d)}%, var(--land))`;
+  /** Teinte d'une proposition : bleu au loin, rouge tout près (pastel, dans les deux thèmes) */
+  const heat = d => Math.round(100 * (1 - Math.min(d, 12000) / 12000) ** 2);
+  const heatFill = d => `color-mix(in oklch, var(--hot) ${heat(d)}%, var(--cold))`;
   const kmTxt = d => (d === 0 ? 'frontalier' : `${nf.format(d < 100 ? Math.round(d) : Math.round(d / 10) * 10)} km`);
 
   register('mystery', {
@@ -581,7 +581,7 @@
       S.target = S.items[(Math.random() * S.items.length) | 0].id;
       S.guesses = []; S.hints = 0; S.won = false;
       A.setTotal(1);
-      A.newMap();
+      A.newMap({ continents: false }); // carte neutre : seules les propositions sont colorées
       A.el.hint.hidden = false;
       A.el.mapPanel.hidden = false;
       A.el.input.placeholder = 'Propose un pays…';

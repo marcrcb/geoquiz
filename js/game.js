@@ -659,7 +659,7 @@
     /** Crée la carte du jeu (plein écran, sans légende) */
     newMap(opts = {}) {
       el.mapStage.hidden = false; el.legend.hidden = true;
-      map = new MapView($('#mapSvg'), { zone: opts.zone || 'ALL', inZone: opts.inZone, onClick: onMapClick, onPoint: opts.onPoint, markers: opts.markers !== false });
+      map = new MapView($('#mapSvg'), { zone: opts.zone || 'ALL', inZone: opts.inZone, onClick: onMapClick, onPoint: opts.onPoint, markers: opts.markers !== false, continents: opts.continents !== false });
       return map;
     },
     /** Bandeau de question en bas (mode carte) */
